@@ -1,0 +1,103 @@
+# Stage 2 deep-auth proof matrix (P4 two-phase transient + P3-lite proxy).
+# Same battle-tested v4.2 architecture as kontrol-proof-matrix: size-class
+# chunking, one prove invocation per test, KCFG checkpoint/resume.
+#
+# Chunk files: CA/harness/generated2/Stage2Chunk_<i>.sol (by gen_stage2.py)
+
+name: kontrol-stage2-matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      chunks:
+        description: 'Chunk indices to prove (comma-separated)'
+        default: '0'
+      resume_run_id:
+        description: 'Optional run ID to resume KCFG checkpoints from'
+        default: ''
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        chunk: ${{ fromJSON(format('[{0}]', inputs.chunks)) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Materialize project + chunk test file
+        run: |
+          cp -r CA/harness/skeleton probe
+          mkdir -p probe/test
+          cp CA/harness/generated2/Stage2Chunk_${{ matrix.chunk }}.sol probe/test/
+          chmod -R a+rwX probe
+
+      - name: Resume KCFG checkpoint (if requested)
+        if: ${{ inputs.resume_run_id != '' }}
+        run: |
+          mkdir -p probe/out/kcfg
+          gh run download ${{ inputs.resume_run_id }} \
+            -n stage2-kcfg-chunk-${{ matrix.chunk }} -D /tmp/kcfg_resume \
+            || echo "no kcfg artifact on that run — starting fresh"
+          if [ -d /tmp/kcfg_resume/kcfg ]; then
+            cp -r /tmp/kcfg_resume/kcfg/. probe/out/kcfg/
+          fi
+          chmod -R a+rwX probe
+
+      - name: kontrol build (docker)
+        run: |
+          set -o pipefail
+          cd probe
+          docker run --rm -v "$PWD":/work/probe \
+            -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+            kontrol build --rekompile 2>&1 | tee build_output.log | tail -3
+          sudo chown -R $(id -u):$(id -g) .
+
+      - name: kontrol prove (docker, one invocation per test)
+        run: |
+          cd probe
+          chmod -R a+rwX .
+          V=verdicts_chunk_${{ matrix.chunk }}.txt; : > "$V"
+          TESTS=$(grep -o 'function test_[A-Za-z0-9_]*' \
+            test/Stage2Chunk_${{ matrix.chunk }}.sol | awk '{print $2}')
+          for t in $TESTS; do
+            echo "=== $t ===" | tee -a "$V" prove_output.log
+            timeout 300m docker run --rm -v "$PWD":/work/probe \
+              -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+              kontrol prove \
+              --match-test 'Stage2Chunk_${{ matrix.chunk }}.'"$t" \
+              --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
+              --workers 2 \
+              2>&1 | tee -a prove_output.log \
+              | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
+              || echo "=== $t INCOMPLETE (timeout/error — kcfg checkpointed) ===" >> "$V"
+            sudo chmod -R a+rwX .
+          done
+          sudo chown -R $(id -u):$(id -g) .
+
+      - name: Extract verdicts
+        if: always()
+        run: cat probe/verdicts_chunk_${{ matrix.chunk }}.txt || true
+
+      - name: Upload findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-results-chunk-${{ matrix.chunk }}
+          path: |
+            probe/verdicts_chunk_${{ matrix.chunk }}.txt
+            probe/prove_output.log
+            probe/build_output.log
+
+      - name: Upload KCFG checkpoint (resume point)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-kcfg-chunk-${{ matrix.chunk }}
+          path: probe/out/kcfg/
+          retention-days: 14
