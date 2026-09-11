@@ -41,7 +41,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Install Kontrol
-        uses: runtimeverification/install-kontrol@v1
+        uses: runtimeverification/install-kontrol@v1.0.2
 
       - name: Materialize project + chunk test file
         run: |
