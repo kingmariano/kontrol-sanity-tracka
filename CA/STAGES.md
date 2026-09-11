@@ -49,3 +49,18 @@ uploads `out/kcfg`; the next run continues it (no `--reinit`).
 3. **Live-state triage** — Blockscout: balances, tokens, activity (zero funds ⇒ dormant)
 4. **P7 profit oracle** — is there a *monetizable* sequence?
 5. **Report** — counterexample + census + live state, FINDINGS_BATCH*.md
+
+## ⚠️ OPERATING RULE — "light batch before every matrix"
+Before ANY Actions matrix (or any scaled run) for a new stage/property:
+1. Run a **light batch locally** (1 chunk, ≤5 targets incl. the controls) and require:
+   - controls behave as designed (safe→PASS, vulnerable→FAIL)
+   - per-proof runtime and memory measured
+   - no harness/compiler/CI-path errors
+2. Then run a **light CI batch** (single-chunk dispatch, `chunks=0`) and require one
+   green end-to-end job (install → build → prove → artifacts) before widening.
+3. Only then fire the full matrix. Every new property template re-enters at step 1.
+
+CI note: `runtimeverification/install-kontrol` action (Nix-based) fails on
+ubuntu-24.04 runners — CI uses the official Docker image
+`runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255` instead (validated env).
+

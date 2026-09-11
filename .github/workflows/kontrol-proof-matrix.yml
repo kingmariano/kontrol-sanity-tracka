@@ -37,31 +37,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Install Kontrol
-        uses: runtimeverification/install-kontrol@v1.0.2
-
+      # Kontrol runs in the official Docker image (Nix-based installer action
+      # fails on ubuntu-24.04 runners; the image is our validated environment
+      # and bundles forge + solc + kontrol).
       - name: Materialize project + chunk test file
         run: |
           cp -r CA/harness/skeleton probe
           mkdir -p probe/test
           cp CA/harness/generated/ProbeChunk_${{ matrix.chunk }}.sol probe/test/
 
-      - name: kontrol build
+      - name: kontrol build (docker)
         run: |
-          cd probe
-          kontrol build --rekompile 2>&1 | tail -2
+          docker run --rm -v ${{ github.workspace }}/probe:/work/probe \
+            -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+            kontrol build --rekompile 2>&1 | tail -2
+          sudo chown -R $(id -u):$(id -g) probe
 
-      - name: kontrol prove
+      - name: kontrol prove (docker)
         run: |
-          cd probe
-          kontrol prove \
+          docker run --rm -v ${{ github.workspace }}/probe:/work/probe \
+            -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+            kontrol prove \
             --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_' \
             --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
             --no-fail-fast --workers 2 \
             2>&1 | tee prove_output.log
+          sudo chown -R $(id -u):$(id -g) probe
 
       - name: Extract verdicts
         if: always()
