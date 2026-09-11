@@ -86,7 +86,7 @@ jobs:
             timeout 300m docker run --rm -v "$PWD":/work/probe \
               -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
               kontrol prove \
-              --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_'"$t" \
+              --match-test 'ProbeChunk_${{ matrix.chunk }}.'"$t" \
               --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
               --workers 2 \
               2>&1 | tee -a prove_output.log \
@@ -97,7 +97,7 @@ jobs:
 
       - name: Extract verdicts
         if: always()
-        run: cat verdicts_chunk_${{ matrix.chunk }}.txt || true
+        run: cat probe/verdicts_chunk_${{ matrix.chunk }}.txt || true
 
       - name: Upload findings
         if: always()
@@ -105,7 +105,7 @@ jobs:
         with:
           name: probe-results-chunk-${{ matrix.chunk }}
           path: |
-            verdicts_chunk_${{ matrix.chunk }}.txt
+            probe/verdicts_chunk_${{ matrix.chunk }}.txt
             probe/prove_output.log
             probe/build_output.log
 
