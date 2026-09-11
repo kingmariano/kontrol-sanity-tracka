@@ -65,7 +65,7 @@ jobs:
           docker run --rm -v "$PWD":/work/probe \
             -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
             kontrol prove \
-            --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_' \
+            --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_.*' \
             --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
             --no-fail-fast --workers 2 \
             2>&1 | tee prove_output.log | grep -E 'PROOF (PASSED|FAILED)|Running|Selected' || true
