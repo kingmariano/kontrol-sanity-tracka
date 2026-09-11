@@ -92,8 +92,11 @@ jobs:
               2>&1 | tee -a prove_output.log \
               | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
               || echo "=== $t INCOMPLETE (timeout/error — kcfg checkpointed) ===" >> "$V"
-            sudo chown -R $(id -u):$(id -g) .
+            # re-open the tree for the next container (uid 1010) — chown here
+            # would lock uid 1010 out of out/proofs for subsequent tests
+            sudo chmod -R a+rwX .
           done
+          sudo chown -R $(id -u):$(id -g) .
 
       - name: Extract verdicts
         if: always()
