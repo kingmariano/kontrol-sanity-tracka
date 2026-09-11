@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 
-contract ProbeChunk6 is Test {
+contract ProbeChunk_6 is Test {
 
     // sstore_no_caller_delegate (672 deployments): 0xa2149e1041c8e8693d46c3802fed55726adaf6118d698b3d6837a7d040a2b738 (161 ops)
     function test_probe_c6_0(

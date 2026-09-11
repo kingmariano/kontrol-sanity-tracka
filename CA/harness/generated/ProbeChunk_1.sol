@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 
-contract ProbeChunk1 is Test {
+contract ProbeChunk_1 is Test {
 
     // selfdestruct_delegate (10,007 deployments): 0x7c60c9fa00c314fa682278ca52e4a5b2bafe5d0ada8b53b6e5913334f3b3d3ae (120 ops)
     function test_probe_c1_0(
