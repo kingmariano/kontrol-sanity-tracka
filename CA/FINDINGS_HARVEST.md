@@ -27,6 +27,27 @@ Meaning: an attacker can prime transient storage with a chosen value (Phase A),
 then pass the TLOAD-derived authorization on a second call (Phase B) — the exact
 SIR-class pattern, found independently in 4 unrelated bytecode families.
 
+## Triage results (counterexample-level, from CI prove logs)
+
+| # | Assertion fired | Selector(s) | Model highlights | Assessment |
+|---|---|---|---|---|
+| 5 (S2-6) | `P4-HIJACK-AFTER-PRIME` | `0x44439209` (both phases) | contract writes caller-chosen address (arg low-20-bytes) into privileged slot; solver unifies attacker with written address | **CONFIRMED** — arbitrary privileged-address installation |
+| 6 (S2-10) | `P4-SD-AFTER-PRIME` (balance drained) | prime `0x6b9f96ea` → drain `0x00821de3` | two distinct selectors; balance 1 ETH → 0 | **CONFIRMED** — primable selfdestruct/drain |
+| 7 (S2-13) | `P4-SD-AFTER-PRIME` (balance drained) | `0x6b9f96ea` (both phases, `prime = 0`) | same selector twice; zero prime suffices — trivially exploitable | **CONFIRMED** — weakest guard of the four |
+| 8 (S2-23) | `P4-HIJACK-AFTER-PRIME` | `0x19ab453c` (both phases) | prime = attacker's own address → TSTORE → second call authorized | **CONFIRMED** — textbook SIR-shape; **same selector as Finding #2** (family lead) |
+
+**Cross-family leads:** `0x6b9f96ea` appears in findings 6 & 7 (different
+bytecodes, 752 vs 264 ops — likely one protocol family); `0x19ab453c` matches
+Finding #2's selector exactly — bytecode-hash dedup missed it because the runtime
+code differs, but the *vulnerable interface* is shared.
+
+## Finding #4 (c5_3) — DOWNGRADED TO SUSPECT
+The FAILED verdict is accompanied by a kore engine crash
+(`Kore.Builtin.Krypto` assertion, code -32002 — symbolic precompile/keccak
+artifact), not a clean property counterexample. **Re-verification required**
+before counting it. Adjusted scoreboard: **7 confirmed, 1 suspect.**
+
+## Triage results (counterexample-level, from CI prove logs)
 ## Stage 1 Wave 1 hits (running total)
 
 | # | Bytecode hash | Ops | Deployments | Selector | Doc |
