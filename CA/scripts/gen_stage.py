@@ -59,6 +59,16 @@ QUERIES = {
             WHERE o.sig_proxy_like AND o.code_size_eff BETWEEN 20 AND 2000
             GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
     },
+    3: {
+        # P7: value-extraction / profit oracle over a bounded call sequence,
+        # targeted at math/AMM-shaped code (division-dense, non-trivial size).
+        "P7_PROFIT": """
+            SELECT o.bytecode_hash, o.n_ops, count(*) n
+            FROM opcode_features o JOIN contracts c USING (bytecode_hash)
+            WHERE o.sig_div_heavy AND o.n_ops BETWEEN 100 AND 3000
+              AND o.code_size_eff BETWEEN 200 AND 16000
+            GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
+    },
 }
 
 # ----------------------------------------------------------------------------
@@ -76,7 +86,7 @@ contract Stage{stage}Chunk_{chunk} is Test {{
 # single-call: P1 write / P2 balance / P7 attacker-profit
 SINGLE = """
     // {label}
-    function test_{name}(
+    function {name}(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {{
         vm.assume(attacker != address(0));
@@ -99,7 +109,7 @@ SINGLE = """
 # two-phase: prime then privileged call (transient/ordering auth)
 TWO_PHASE = """
     // {label}
-    function test_{name}(
+    function {name}(
         bytes4 selA, uint256 prime, bytes4 selB, uint256 a, uint256 b, address attacker
     ) public {{
         vm.assume(attacker != address(0));
@@ -121,10 +131,37 @@ TWO_PHASE = """
     }}
 """
 
+# multi-call profit oracle: 3 arbitrary calls, then value invariants
+MULTI = """
+    // {label}
+    function {name}(
+        bytes4 s1, uint256 x1, bytes4 s2, uint256 x2, bytes4 s3, uint256 x3, address attacker
+    ) public {{
+        vm.assume(attacker != address(0));
+        address target = address(uint160(0x{base:x} + {idx}));
+        vm.etch(target, hex"{code}");
+        vm.deal(target, 1 ether);
+        for (uint256 i = 0; i < 8; i++) vm.store(target, bytes32(i), bytes32(0));
+        uint256 bal0 = target.balance;
+        uint256 atk0 = attacker.balance;
+        vm.prank(attacker);
+        target.call(abi.encodeWithSelector(s1, x1));
+        vm.prank(attacker);
+        target.call(abi.encodeWithSelector(s2, x2));
+        vm.prank(attacker);
+        target.call(abi.encodeWithSelector(s3, x3));
+        assertEq(target.balance, bal0, "P_TARGET_LOSS");
+        assertLe(attacker.balance, atk0, "P_ATTACKER_PROFIT");
+        for (uint256 i = 0; i < 8; i++) {{
+            assertTrue(vm.load(target, bytes32(i)) != bytes32(uint256(uint160(attacker))), "P_AUTH_WRITE");
+        }}
+    }}
+"""
+
 # naive proxy: slot0 points at a canary whose fallback selfdestructs
 PROXY = """
     // {label}
-    function test_{name}(bytes4 selector, uint256 a, address attacker) public {{
+    function {name}(bytes4 selector, uint256 a, address attacker) public {{
         vm.assume(attacker != address(0));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"{killer}");
@@ -177,7 +214,7 @@ def chunk_targets(items, class_name):
                 out.append(mid); mid = []
         else:
             small.append(it)
-            size = 2 if class_name == "P4_TWO_PHASE" else 5
+            size = 5 if class_name in ("P1_AUTH_WRITE", "P2_BALANCE", "P3_PROXY") else 2
             if len(small) == size:
                 out.append(small); small = []
     if mid:
@@ -192,7 +229,6 @@ def main():
     ap.add_argument("--stage", type=int, required=True)
     ap.add_argument("--out", default=None)
     ap.add_argument("--limit", type=int, default=8, help="max targets per query")
-    ap.add_argument("--wave", type=int, default=1)
     ap.add_argument("--emit-chunks", default="", help="comma list; empty = all")
     ap.add_argument("--controls-only", action="store_true",
                     help="emit only chunk 0 (controls); no DB access")
@@ -218,6 +254,13 @@ def main():
             ("CONTROL_MUST_FAIL", "VulnerableControl", "test_control_vulnerable"),
             ("CONTROL_MUST_PASS", "SafeControl", "test_control_safe"),
         ]
+    elif args.stage == 3:
+        controls = [
+            ("CONTROL_MUST_FAIL", "VulnerableProfit", "test_control_vulnerable_profit"),
+            ("CONTROL_MUST_PASS", "SafeProfit", "test_control_safe_profit"),
+            ("CONTROL_MUST_FAIL", "VulnerableAmplify", "test_control_vulnerable_amplify"),
+            ("CONTROL_MUST_PASS", "SafeAmplify", "test_control_safe_amplify"),
+        ]
     else:
         controls = [
             ("CONTROL_MUST_FAIL", "VulnerableTransient", "test_control_vulnerable_transient"),
@@ -235,7 +278,7 @@ def main():
         for group in chunk_targets(items, cls):
             chunks.append(group)
 
-    manifest = {"stage": args.stage, "wave": args.wave, "chunks": []}
+    manifest = {"stage": args.stage, "chunks": []}
     want = set(int(x) for x in args.emit_chunks.split(",")) if args.emit_chunks else None
 
     for ci, sel in enumerate(chunks):
@@ -249,6 +292,9 @@ def main():
                 if args.stage == 1:
                     parts.append(SINGLE.format(label=f"{kind} {cname}", name=tname,
                                                base=0x1000000, idx=0, code=code))
+                elif args.stage == 3:
+                    parts.append(MULTI.format(label=f"{kind} {cname}", name=tname,
+                                              base=0x3000000, idx=0, code=code))
                 else:
                     # controls for stage 2 use whichever template fits
                     if cname in ("NaiveProxy", "SafeProxy"):
@@ -271,6 +317,8 @@ def main():
                 elif t["class"] == "P3_PROXY":
                     body = PROXY.format(label=label, name=tname, base=0x2000000, idx=i,
                                         code=code, killer=control_code("KillerImpl"))
+                elif t["class"] == "P7_PROFIT":
+                    body = MULTI.format(label=label, name=tname, base=0x3000000, idx=i, code=code)
                 else:
                     body = SINGLE.format(label=label, name=tname, base=0x1000000, idx=i, code=code)
                 parts.append(body)

@@ -7,7 +7,7 @@ import {Test} from "forge-std/Test.sol";
 contract Stage2Chunk_0 is Test {
 
     // CONTROL_MUST_FAIL VulnerableTransient
-    function test_test_control_vulnerable_transient(
+    function test_control_vulnerable_transient(
         bytes4 selA, uint256 prime, bytes4 selB, uint256 a, uint256 b, address attacker
     ) public {
         vm.assume(attacker != address(0));
@@ -29,7 +29,7 @@ contract Stage2Chunk_0 is Test {
     }
 
     // CONTROL_MUST_PASS SafeTransient
-    function test_test_control_safe_transient(
+    function test_control_safe_transient(
         bytes4 selA, uint256 prime, bytes4 selB, uint256 a, uint256 b, address attacker
     ) public {
         vm.assume(attacker != address(0));
@@ -51,7 +51,7 @@ contract Stage2Chunk_0 is Test {
     }
 
     // CONTROL_MUST_FAIL NaiveProxy
-    function test_test_control_naive_proxy(bytes4 selector, uint256 a, address attacker) public {
+    function test_control_naive_proxy(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");
@@ -66,7 +66,7 @@ contract Stage2Chunk_0 is Test {
     }
 
     // CONTROL_MUST_PASS SafeProxy
-    function test_test_control_safe_proxy(bytes4 selector, uint256 a, address attacker) public {
+    function test_control_safe_proxy(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");

@@ -7,7 +7,7 @@ import {Test} from "forge-std/Test.sol";
 contract Stage1Chunk_0 is Test {
 
     // CONTROL_MUST_FAIL VulnerableControl
-    function test_test_control_vulnerable(
+    function test_control_vulnerable(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
         vm.assume(attacker != address(0));
@@ -27,7 +27,7 @@ contract Stage1Chunk_0 is Test {
     }
 
     // CONTROL_MUST_PASS SafeControl
-    function test_test_control_safe(
+    function test_control_safe(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
         vm.assume(attacker != address(0));

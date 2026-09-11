@@ -1,0 +1,16 @@
+{
+ "stage": 3,
+ "chunks": [
+  {
+   "chunk": 0,
+   "class": "CONTROLS",
+   "tests": [
+    "test_control_vulnerable_profit",
+    "test_control_safe_profit",
+    "test_control_vulnerable_amplify",
+    "test_control_safe_amplify"
+   ],
+   "targets": []
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+# Stage 3 — math + profit (P7 value-extraction oracle over a bounded call sequence).
+# Run sanity (controls) first, then full.
+name: stage3-math
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'sanity (controls only) | full'
+        required: false
+        default: 'sanity'
+        type: choice
+        options: [sanity, full]
+      chunks:
+        description: 'chunk indices (comma-separated); empty = all'
+        required: false
+        default: ''
+        type: string
+      resume_run_id:
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  run:
+    uses: ./.github/workflows/stage-matrix.yml
+    with:
+      stage: '3'
+      mode: ${{ inputs.mode }}
+      chunks: ${{ inputs.chunks }}
+      resume_run_id: ${{ inputs.resume_run_id }}

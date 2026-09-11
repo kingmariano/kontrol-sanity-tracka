@@ -100,6 +100,7 @@ jobs:
 
       - name: kontrol prove (one invocation per test)
         run: |
+          TESTS_FILE="$GITHUB_WORKSPACE/CA/harness/stages/stage${STAGE}/chunk_${{ matrix.chunk }}.tests"
           cd probe
           chmod -R a+rwX .
           V=verdicts_chunk_${{ matrix.chunk }}.txt; : > "$V"
@@ -115,7 +116,7 @@ jobs:
               | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
               || echo "=== $t INCOMPLETE (timeout/error; kcfg checkpointed) ===" >> "$V"
             sudo chmod -R a+rwX .
-          done < CA/harness/stages/stage${STAGE}/chunk_${{ matrix.chunk }}.tests
+          done < "$TESTS_FILE"
           sudo chown -R $(id -u):$(id -g) .
 
       - name: Extract verdicts
