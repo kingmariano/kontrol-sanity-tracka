@@ -11,6 +11,518 @@
     "test_control_safe_amplify"
    ],
    "targets": []
+  },
+  {
+   "chunk": 1,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c1_0",
+    "test_p7_c1_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x07be01e7e7206fe31ecee91ad75dada65ad6ba433ae647a1b9330469f7c6677c",
+     "ops": 498,
+     "deployments": 401549,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x35810db24ceb31609b83309d8f8a58a0dedd934a2a43dd02e3c44809a901e627",
+     "ops": 261,
+     "deployments": 292285,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 2,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c2_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x3980451255e493e58008161f3645447b7f50756ea57a9af29b3dae54da936f0d",
+     "ops": 2451,
+     "deployments": 230946,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 3,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c3_0",
+    "test_p7_c3_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x27c02a1a822222c2ad6a9a01021c98abf05dbe6d19540035756ef97697ed41d0",
+     "ops": 1453,
+     "deployments": 222108,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x845ffa9307e44b834ffdccccbceb7c571238e416323a16ff4983663e2618bcd3",
+     "ops": 751,
+     "deployments": 112986,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 4,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c4_0",
+    "test_p7_c4_1"
+   ],
+   "targets": [
+    {
+     "hash": "0xf99af0b81dc988ac8cd1fca36090f280110777e0d6f9304383921260e7ac2327",
+     "ops": 293,
+     "deployments": 206857,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x0865cec1e9ac3048b12a85fc3b9fbc682c3831784e3396416635df4cb88c3fdd",
+     "ops": 272,
+     "deployments": 69055,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 5,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c5_0",
+    "test_p7_c5_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x4fd8f3d5d01ac986870f5c4c0c761fdf3e519b14f67e1ebf90c7046392ceac54",
+     "ops": 538,
+     "deployments": 37628,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x303931f8ef9df9270c30e0ac139957f2641beba9374ab0f098cd92ffad96d5cc",
+     "ops": 271,
+     "deployments": 36851,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 6,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c6_0",
+    "test_p7_c6_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x6683cfc30ed7dd6605aa84788407ff6ef5b76062a60a6dd0c8d1dfac5f801dc5",
+     "ops": 246,
+     "deployments": 36214,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xb295f581dc18129473ef66c2cefea4da335452a4704bafda2777e09802f528fa",
+     "ops": 334,
+     "deployments": 31285,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 7,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c7_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x39b2abcee24c128fc061dbfd33c0218a2f5013d8e0dfe8a84ea4035313f0227e",
+     "ops": 720,
+     "deployments": 46478,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 8,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c8_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xf48846e8ac0f123592406816366b26791c9780b1575b4f8def96cfcee80c9119",
+     "ops": 1897,
+     "deployments": 30476,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 9,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c9_0",
+    "test_p7_c9_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x7c764d7b20b3a2cef2528776af549b65e45fb645c8bb26e3aa932bac7b24b02c",
+     "ops": 290,
+     "deployments": 22375,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xfc102dffed8f5f30850a6fa59f7f4b8c94719c5e531bba1b7bac9df1869f6ccd",
+     "ops": 406,
+     "deployments": 21275,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 10,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c10_0",
+    "test_p7_c10_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x6616342f393c4c24c5920aa30e303a37c55734ed0ebcb1656727a7bb8e36c13f",
+     "ops": 963,
+     "deployments": 30335,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x49eb24945dac7b8c38401cc7bae07144cfcfed5c465a0d00bb69566106fcab82",
+     "ops": 1158,
+     "deployments": 20981,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 11,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c11_0",
+    "test_p7_c11_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x40fe4aa0dae90a0ae92202c2245b6ba88bf754a61a4af2ac03f5f301d558644e",
+     "ops": 399,
+     "deployments": 20686,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x9aa1be13f3d79ada93191d9aba0e19ea9310bc77049ef8aeba839ec8c2c4716c",
+     "ops": 507,
+     "deployments": 20594,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 12,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c12_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x00d3a9276d2c475845498d3b0d5d9afd9d827ec9a3845b8b4bd049a3821b3a1a",
+     "ops": 796,
+     "deployments": 19721,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 13,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c13_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xfbc3de4c51e17960ecbd964d55dc5985faa8d1b8f43c855b82d96b9d6aa08d74",
+     "ops": 1946,
+     "deployments": 17737,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 14,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c14_0",
+    "test_p7_c14_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x46550840f29528f1c203e196cc1082e1c1423c7cddb471748db9517c485ca81d",
+     "ops": 685,
+     "deployments": 17653,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xaa66ded9c66a7a9c592ad97477d57fe46f7a8ff2bdea8e68ab79955d8b0857b4",
+     "ops": 1221,
+     "deployments": 17415,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 15,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c15_0",
+    "test_p7_c15_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x1a5a6464d6fe61bc117dd1fb7107f93670da6aceb61fb5124271cc2d896a5540",
+     "ops": 1263,
+     "deployments": 16624,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xf51fa52fd1b3634073cdac532c263a81791eaa8d2e5b553ac6196b0a6bda534e",
+     "ops": 796,
+     "deployments": 15037,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 16,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c16_0",
+    "test_p7_c16_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x0908d3b05c8d1eb49c03b9427601d12d87c64afe51c71bf257dbbbd3186349d9",
+     "ops": 102,
+     "deployments": 16410,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xde4c9d1a6fb8f3413ac6280a96e70d8d5509a1356742ce84e2978a35c594d053",
+     "ops": 360,
+     "deployments": 14931,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 17,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c17_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x1d30a769f76826622a936e725cb5d8eb20fa652d4253065a04e652b80656bea1",
+     "ops": 1812,
+     "deployments": 14066,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 18,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c18_0",
+    "test_p7_c18_1"
+   ],
+   "targets": [
+    {
+     "hash": "0xe215b3188e9f4e5c575f71e93560b785f30e02b9b47b209ad5a94d3023ded7f9",
+     "ops": 818,
+     "deployments": 13383,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xf767f00cf770bc580fd7d3a43c7eb0ad9dd621b335fa663459eb00fed18453e0",
+     "ops": 743,
+     "deployments": 12706,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 19,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c19_0",
+    "test_p7_c19_1"
+   ],
+   "targets": [
+    {
+     "hash": "0xc279544d07d9631b1e37d835cadfe7098d60e508cf8f18a89ddb8b176d56874d",
+     "ops": 265,
+     "deployments": 10767,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x4ca475653d166f48143248bc39a0f62b785011c8b4b6daf1021e8dc77afcabcd",
+     "ops": 421,
+     "deployments": 10100,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 20,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c20_0",
+    "test_p7_c20_1"
+   ],
+   "targets": [
+    {
+     "hash": "0xfe9671232a60356835d466fa407f26f21cf93957a962ffa2bcd7fa2f88ad9530",
+     "ops": 578,
+     "deployments": 9745,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x02da1a38cfd197a895ca814def266bc9fdddcc947aaeb4b3426c5fa7afb3040c",
+     "ops": 120,
+     "deployments": 9348,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 21,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c21_0",
+    "test_p7_c21_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x8afef8a4527357b3b8d2d1f6a392504bb1fa2a22de48bc6a3b4dd349758ea55e",
+     "ops": 1226,
+     "deployments": 9391,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xaa442f3c7e69540d3d42215fcf08df086c4fab9042218c9efbd968de8bea07f9",
+     "ops": 1265,
+     "deployments": 8807,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 22,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c22_0",
+    "test_p7_c22_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x7163ba9b235b928bb6b4aaa3df40597fe4c95c66757f8444517e301d83ba637b",
+     "ops": 531,
+     "deployments": 8850,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x05f2cadb6486616d3ed61a6243af2589c12c30bab95a6f1c720b6bb8b08b90f6",
+     "ops": 253,
+     "deployments": 7531,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 23,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c23_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xad124e84e856eab44aba6c445a8e2e42d0b52e0e06d7eb9bd4cb63b9ca8a7360",
+     "ops": 1160,
+     "deployments": 8567,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 24,
+   "class": "P7_PROFIT",
+   "tests": [
+    "test_p7_c24_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xd2ca7fb94a6c1969318e98c6c9b57d96f2ab57dc13f56a40ea9ebedfefe698d4",
+     "ops": 419,
+     "deployments": 7321,
+     "class": "P7_PROFIT",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
   }
  ]
 }

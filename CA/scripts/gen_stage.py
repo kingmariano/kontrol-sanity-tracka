@@ -36,14 +36,14 @@ QUERIES = {
             FROM opcode_features o JOIN contracts c USING (bytecode_hash)
             WHERE o.sig_sstore_no_caller AND o.sig_delegate
               AND o.code_size_eff BETWEEN 40 AND 16000
-            GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
+            GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
         # P2-BALANCE / P7-PROFIT: selfdestruct reachable next to a delegatecall
         "P2_BALANCE": """
             SELECT o.bytecode_hash, o.n_ops, count(*) n
             FROM opcode_features o JOIN contracts c USING (bytecode_hash)
             WHERE o.sig_selfdestruct AND o.sig_delegate
               AND o.code_size_eff BETWEEN 40 AND 16000
-            GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
+            GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
     },
     2: {
         # P4: two-phase (prime then privileged call) — REAL TSTORE/TLOAD now
@@ -51,13 +51,13 @@ QUERIES = {
             SELECT o.bytecode_hash, o.n_ops, count(*) n
             FROM opcode_features o JOIN contracts c USING (bytecode_hash)
             WHERE o.sig_transient_caller AND o.n_ops BETWEEN 80 AND 1500
-            GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
+            GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
         # P3: naive proxy (tiny delegatecall target derived from storage)
         "P3_PROXY": """
             SELECT o.bytecode_hash, o.n_ops, count(*) n
             FROM opcode_features o JOIN contracts c USING (bytecode_hash)
             WHERE o.sig_proxy_like AND o.code_size_eff BETWEEN 20 AND 2000
-            GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
+            GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
     },
     3: {
         # P7: value-extraction / profit oracle over a bounded call sequence,
@@ -67,7 +67,7 @@ QUERIES = {
             FROM opcode_features o JOIN contracts c USING (bytecode_hash)
             WHERE o.sig_div_heavy AND o.n_ops BETWEEN 100 AND 3000
               AND o.code_size_eff BETWEEN 200 AND 16000
-            GROUP BY 1,2 ORDER BY n DESC LIMIT {limit}""",
+            GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
     },
 }
 
@@ -236,6 +236,9 @@ def main():
 
     outdir = args.out or os.path.join(ROOT, "harness", "stages", f"stage{args.stage}")
     os.makedirs(outdir, exist_ok=True)
+    for f in os.listdir(outdir):
+        if f.startswith(f"Stage{args.stage}Chunk_") or f.startswith("chunk_") or f == "manifest.json":
+            os.remove(os.path.join(outdir, f))
 
     targets = []
     if not args.controls_only:
@@ -310,7 +313,7 @@ def main():
             parts, tests = [], []
             for i, t in enumerate(sel):
                 code = fetch_code(con, t["hash"])
-                tname = f"test_p{t['class'].split('_')[0].lower()}_c{ci}_{i}"
+                tname = f"test_{t['class'].split('_')[0].lower()}_c{ci}_{i}"
                 label = f"{t['class']} [{t['ops']} ops, {t['deployments']:,} deployments] {t['hash']}"
                 if t["class"] == "P4_TWO_PHASE":
                     body = TWO_PHASE.format(label=label, name=tname, base=0x2000000, idx=i, code=code)

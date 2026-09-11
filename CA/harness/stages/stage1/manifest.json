@@ -9,6 +9,1070 @@
     "test_control_safe"
    ],
    "targets": []
+  },
+  {
+   "chunk": 1,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c1_0",
+    "test_p1_c1_1"
+   ],
+   "targets": [
+    {
+     "hash": "0xf9e2d36819eab1d19e19372266a32e00cb30b02a96732fa6174ccdb560ba1907",
+     "ops": 492,
+     "deployments": 19130,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x038cfd30a54785c310890eb5dbca5667cb56f069e624efd7011271f8880ca497",
+     "ops": 399,
+     "deployments": 10029,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 2,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c2_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xb47ec119fe9d5c64da939459130811573d073aac395276a50d7f2a31cac4d17a",
+     "ops": 2132,
+     "deployments": 2029,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 3,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c3_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x1cf5a0fe3bf24282cc81b8ffae2e5e3aa750f3f182a6665e22ba4ab24da3aaf3",
+     "ops": 536,
+     "deployments": 1352,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 4,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c4_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x01a99ad3717020cbba98fc5b74f0d921d6f56d622bc7a15c0dac860582d3cb96",
+     "ops": 820,
+     "deployments": 1699,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 5,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c5_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x79af4aca351c01573a5ab553d1b5c43aa0d78ac517c3142761d0a0232694e657",
+     "ops": 2114,
+     "deployments": 1046,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 6,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c6_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x3fb880dfafb8965fa230c77eea19484e437019a0a338e992430d17e9a814186a",
+     "ops": 3069,
+     "deployments": 903,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 7,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c7_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x7978612e924b7fdf06898f4402c683ca5dac9e460f4ccc5996aee49cd8f2690d",
+     "ops": 2277,
+     "deployments": 626,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 8,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c8_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xf92d876b412f298dd207f982f47a2b2ab6d37e03845f1b66f3c4c9a810ef1038",
+     "ops": 256,
+     "deployments": 433,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 9,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c9_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x60bc5941df3e172f7e9b98e767b7cd90a930a314e55ccd0fe439c55d24c5df14",
+     "ops": 2352,
+     "deployments": 432,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 10,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c10_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x98bf937ac07351e6cd57cc41e8a54c90facb5d01f8c51f16fb6143e8b27c7c9a",
+     "ops": 3069,
+     "deployments": 249,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 11,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c11_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x7ddb77ce126d50d5102d44218597abb0ddfa5d52309921e67fb63d8f7fab045a",
+     "ops": 3069,
+     "deployments": 235,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 12,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c12_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xa0d901375742a06fb4e7aa13acc9679993ef341ec290c9baef665d0164197cca",
+     "ops": 291,
+     "deployments": 193,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 13,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c13_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xdd84096d43b2944cc71db541cffc21b9ee6b2dd9e1333df5d9d806a710f2cf74",
+     "ops": 618,
+     "deployments": 223,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 14,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c14_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x79e2fdce736c77999543ad79683d732d5a021917ddd873916ff02a6c79a05e0d",
+     "ops": 2352,
+     "deployments": 182,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 15,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c15_0",
+    "test_p1_c15_1",
+    "test_p1_c15_2",
+    "test_p1_c15_3"
+   ],
+   "targets": [
+    {
+     "hash": "0x5cb6cb52101c051ebd028d3dad11e44d33b6b18025f2edcee14f6b1b36131a51",
+     "ops": 591,
+     "deployments": 152,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xfd6c3102fde224520e5f5a54e5b4a25cf6378ce84431dedf72b7ec4bf65cec65",
+     "ops": 63,
+     "deployments": 108,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xd02f9f9d7194110df412b06769a78a6a8f329669bab299d7f6717a449637f1eb",
+     "ops": 294,
+     "deployments": 107,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xaf66ea93ad7787b5ea60f147973b384dfddaf2dea5591abad8b60e478c0cebb7",
+     "ops": 437,
+     "deployments": 100,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 16,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c16_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x42f2ecb7240414785d5fec84adfed21e981fc5fa8e29938ba1f60b4e3070c023",
+     "ops": 853,
+     "deployments": 100,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 17,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c17_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x62ceb337ea1b524ad441112bcf172c2ef10a8d11a458f8f60cfa0f19b71fba4d",
+     "ops": 2352,
+     "deployments": 97,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 18,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c18_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x3fbde051a9d39cfcb37dd6218d71046822495909f2ec186b85cee31df48c4317",
+     "ops": 49,
+     "deployments": 94,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 19,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c19_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xff4abf82fa4675103535fbc43390cb0ade25fe7dfcf15cdb3631c504f7494af5",
+     "ops": 2132,
+     "deployments": 87,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 20,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c20_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x5cc4b458e72cb61a8c14ad283da53efb7dc515cac849705488ffb402500867ed",
+     "ops": 618,
+     "deployments": 80,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 21,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c21_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x536e7bb3aaa96d8b360432c7fbd27766d58f8550f22f3692e664faeafdd49e89",
+     "ops": 2132,
+     "deployments": 73,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 22,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c22_0",
+    "test_p1_c22_1",
+    "test_p1_c22_2",
+    "test_p1_c22_3"
+   ],
+   "targets": [
+    {
+     "hash": "0x38a2adc42badb4dde95126f49e56bcdc069a9f29e04d708566bb647e724d44d1",
+     "ops": 475,
+     "deployments": 70,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xa067a75087ec9ecef6b270a14052ffb98282826144b09f0263c4cbf8ba1d1313",
+     "ops": 560,
+     "deployments": 68,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xe39355596703cf75753292f726681eacdef346e617b893efc367807e6b00b77c",
+     "ops": 560,
+     "deployments": 66,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x5d90489d92b841681117310b70e8d67859075008a031e1bdd65579695488a437",
+     "ops": 591,
+     "deployments": 61,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 23,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c23_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x970879fd0babb7814d695365d61b1d175b489ede074ad6e5c5b720cb48bafe7b",
+     "ops": 777,
+     "deployments": 68,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 24,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c24_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xb419d9f1fa8b1a280eec890e089667b54017f973aed6025d6c45922134147663",
+     "ops": 2519,
+     "deployments": 54,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 25,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c25_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xb5eddb96a409580758c0db9ecdc5faa4b5e91be38a6185fd5d3fed26fce4be30",
+     "ops": 565,
+     "deployments": 53,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 26,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c26_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x75cbfdc7e724c56218738f4b638a59b80a21860542812020abf1cc95c22f0ee4",
+     "ops": 3046,
+     "deployments": 50,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 27,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c27_0",
+    "test_p1_c27_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x13e2982407cb413d05650ff6e74a4337885fe3aab7e364be14637cb74f75b757",
+     "ops": 1380,
+     "deployments": 46,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x2e9882dd6faca9c9bded2892eca89b37296d2ffa127759641f16d2e93eac5515",
+     "ops": 765,
+     "deployments": 31,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 28,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c28_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xd074834d82d9d13824c8e34d1b4af79c5b09587c76ba872c80259b25546054ad",
+     "ops": 620,
+     "deployments": 30,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 29,
+   "class": "P1_AUTH_WRITE",
+   "tests": [
+    "test_p1_c29_0",
+    "test_p1_c29_1",
+    "test_p1_c29_2",
+    "test_p1_c29_3"
+   ],
+   "targets": [
+    {
+     "hash": "0x1d9a0071e20e042012ddc4d9b5c9b595206dc6dcda83dcd0f3b6f48c2b1c470f",
+     "ops": 565,
+     "deployments": 48,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xe3d1dc24861867d75bc4b9e2ee561b2b6d8b812dfd7d4ef524cbc82784d13e50",
+     "ops": 63,
+     "deployments": 33,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xab9e36938142277459a814ac5a0f1499be896dfe0120c2b5a5b7cbbdb1c4982c",
+     "ops": 257,
+     "deployments": 29,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x5b766ba83eafec29f545ca578f8d1d35d6a5d96207ab57597e3d79493429d87a",
+     "ops": 55,
+     "deployments": 26,
+     "class": "P1_AUTH_WRITE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 30,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c30_0",
+    "test_p2_c30_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x2ab5b2d6a799bc00b8b67495ed6b98a9c55632080c5c190c2f02cb1887baf8d8",
+     "ops": 1001,
+     "deployments": 2621,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x8f9dad177ae41f46ca42a2863143f58612c34eb01505ea19a62e0c51179acbca",
+     "ops": 1276,
+     "deployments": 2218,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 31,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c31_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x85b2883b04ac9647f2a216793f0c9f1320a14acc9d33fa53ef05ec880ad04ff9",
+     "ops": 753,
+     "deployments": 548,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 32,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c32_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x6bfde61c31150a5fda576089b8bc3988601c6260754bc25512ba7b3af7f7123c",
+     "ops": 2235,
+     "deployments": 256,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 33,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c33_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x95125c62e9bf4f89a34f48aa4ffe1ce22712cd597179092a3d9c454ddc75b71a",
+     "ops": 4243,
+     "deployments": 253,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 34,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c34_0",
+    "test_p2_c34_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x42f2ecb7240414785d5fec84adfed21e981fc5fa8e29938ba1f60b4e3070c023",
+     "ops": 853,
+     "deployments": 100,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xbfdd2be159a447146b2849f48e83d5ea9b061d862d465718b410d1414e863044",
+     "ops": 886,
+     "deployments": 63,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 35,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c35_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x38a2adc42badb4dde95126f49e56bcdc069a9f29e04d708566bb647e724d44d1",
+     "ops": 475,
+     "deployments": 70,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 36,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c36_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x2c830f56950bd0201e903637e1ffccbafd2e8901dce6debdc3c040b9469f6a09",
+     "ops": 1783,
+     "deployments": 46,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 37,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c37_0",
+    "test_p2_c37_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x5883d381eced509f5b449de069110bb31f5234c879660f7ce3a6fdd5a16a74a9",
+     "ops": 561,
+     "deployments": 37,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x7bf71f786c4d36aecf77e6b12fda8c5018bf98d31253bd0d2864bf1b60868b87",
+     "ops": 52,
+     "deployments": 35,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 38,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c38_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x956be21dfbafb62e820683b92992782ca88598f31e45568191966a5284b2b0ff",
+     "ops": 1223,
+     "deployments": 34,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 39,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c39_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xe2014bdbeec06cc5bfcbe20c418f97c3c184f1f6bb474dbd7a814080ea548ec5",
+     "ops": 8119,
+     "deployments": 33,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 40,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c40_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x1bea6ea5206aaeaa3e2ab6acf59c5853bd33bd7e93020d14903b8f4cb9cb604a",
+     "ops": 1628,
+     "deployments": 31,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 41,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c41_0",
+    "test_p2_c41_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x472a860a2464f834e7f6b386676538a1ac458e8b304851d53e35b25a7f82ac62",
+     "ops": 707,
+     "deployments": 21,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xc6d0f2360e72c9df49e80d89a88654c796e8b0c657097c264fa559959f2a0aad",
+     "ops": 835,
+     "deployments": 19,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 42,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c42_0",
+    "test_p2_c42_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x4ec691fa07429f2037f13b3b07576c49c3c0fd28862a0dc9641f6da0f7907a7e",
+     "ops": 654,
+     "deployments": 18,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x81fe2e4d361238e787db261601f0632235bc1e2649156c86f1ffb7ca5cf3237d",
+     "ops": 690,
+     "deployments": 17,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 43,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c43_0",
+    "test_p2_c43_1",
+    "test_p2_c43_2",
+    "test_p2_c43_3",
+    "test_p2_c43_4"
+   ],
+   "targets": [
+    {
+     "hash": "0x7c73885af6cede59808d5552ba65ff75ae240788b7de30bf904745668360499a",
+     "ops": 66,
+     "deployments": 25,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x31b610fee013142e0225a9c20fe5313876b49d10b14657ab37d56080fda0dd62",
+     "ops": 318,
+     "deployments": 24,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xa443966c0d41a2bf4dae0d89a01244f3e96eb47b08f21ac4c3f8a12ce5894e85",
+     "ops": 61,
+     "deployments": 23,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x6523f157f98bdc9edfeac0e953738cb02a3c0276cfb07d0849c18e610cd632c4",
+     "ops": 66,
+     "deployments": 19,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xbcc2a30dc54384bf0b64fc656cb14b1fa375687b67e5bfe4511fa3c361c7e0cf",
+     "ops": 559,
+     "deployments": 17,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 44,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c44_0",
+    "test_p2_c44_1"
+   ],
+   "targets": [
+    {
+     "hash": "0x0d423dc2df1d29cf5eecc3218a2d036662996682897ca1e23ab3d0ba7472f609",
+     "ops": 334,
+     "deployments": 15,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xd489c67f7516e4b9bd2ed07136af84b903fdb4f473365869c286d3dd492ca876",
+     "ops": 475,
+     "deployments": 15,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 45,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c45_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x233b17a2bd6e1a2ae588c531fa0f47fe34f60f4d3e84645c2a2fa2650681e19e",
+     "ops": 8153,
+     "deployments": 14,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 46,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c46_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x8bed07804d0e4ccd540181e827e86f8a6af1d162934289b2ed9233afb264ecde",
+     "ops": 8498,
+     "deployments": 14,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 47,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c47_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xe1edc188fce22daade0ddf920f8c06b02856c10bf29a04a9dd3f0a2969bff72c",
+     "ops": 8348,
+     "deployments": 14,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 48,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c48_0",
+    "test_p2_c48_1",
+    "test_p2_c48_2"
+   ],
+   "targets": [
+    {
+     "hash": "0x6504446ccbbeefcc6dcada7877acbceab618f821c11d12a8e511cebe8b317bdb",
+     "ops": 56,
+     "deployments": 13,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xba1a2742437de9798d7fddbf3fa66088fc32d6e13a70e51bb6d609ec918c8ccb",
+     "ops": 63,
+     "deployments": 13,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xf6ec824caa3c6682cf44f206c54507330b5f7f1f1d930f0edd0623c44d6b844a",
+     "ops": 294,
+     "deployments": 13,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 49,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c49_0"
+   ],
+   "targets": [
+    {
+     "hash": "0xc502a463d7ac251e331528e49f800f7621ec60d3d3c247e31949cc94de10c556",
+     "ops": 10625,
+     "deployments": 12,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 50,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c50_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x00a7b91038b6a433a7ec62ff006be657e58991225d5508e338b7f7143c24a081",
+     "ops": 1737,
+     "deployments": 11,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 51,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c51_0",
+    "test_p2_c51_1",
+    "test_p2_c51_2",
+    "test_p2_c51_3",
+    "test_p2_c51_4"
+   ],
+   "targets": [
+    {
+     "hash": "0x19d4a5c238459e0fcc3d5394933858b37d617fbeca44dbb86fff79ef48754a15",
+     "ops": 80,
+     "deployments": 11,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0x92aa13828d9756fbb4b88c5f9fbbc00f70b553f4e0a92390be90f45d23cbfa05",
+     "ops": 66,
+     "deployments": 11,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xdc7a9d0bf8949117337361509d10a773e9b635411a4f9d33bda0ec29dade1006",
+     "ops": 55,
+     "deployments": 11,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xe599a484b8222559115a21f16eaf9c6cc10408d2c4ff90308035c650c3db45e5",
+     "ops": 66,
+     "deployments": 11,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    },
+    {
+     "hash": "0xf3248907bd7d9089ad18384d0c664fba6353a2292ce29ae24dd359fa5403dd1a",
+     "ops": 56,
+     "deployments": 11,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 52,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c52_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x2af1c4e3e411799978fd42219c467930311118f18bd26eb72651121ee03d6403",
+     "ops": 853,
+     "deployments": 10,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
+  },
+  {
+   "chunk": 53,
+   "class": "P2_BALANCE",
+   "tests": [
+    "test_p2_c53_0"
+   ],
+   "targets": [
+    {
+     "hash": "0x18e9069cd5bd35780b42406d1491adf4365176bb10d75c0d12a7228d683c9863",
+     "ops": 51,
+     "deployments": 10,
+     "class": "P2_BALANCE",
+     "state_model": "ZEROED_SLOTS_0_7"
+    }
+   ]
   }
  ]
 }

@@ -7,26 +7,35 @@ execution stages → compute. Companion to ZERO_DAY_RESEARCH.md and FINDINGS_BAT
 
 | # | Research class (canonical case) | Property | Harness shape | Property cost |
 |---|---|---|---|---|
-| 1 | Missing auth on exposed fn (SWEAT) | **P1** — attacker's address must never appear in storage slots 0..7 after arbitrary call; **P1b** (planned) — no storage value change at all | single call | ~7 min |
-| 2 | Kill-switch / selfdestruct | **P2** — target ETH balance must survive arbitrary call | single call | ~7 min |
-| 3 | Rounding-direction inconsistency (Balancer) | **P6** — deposit(d) → k swaps (BMC-bounded) → withdraw ⇒ attacker balance ≤ d | multi-call sequence | ~1-3 h |
-| 4 | Near-zero denominator (Cetus) | **P5** — bounded input ⇒ bounded output (output/input ≤ 10⁶) | single call + math compare | ~15-30 min |
-| 5 | Callback/transient auth (SIR) | **P4** — two-call sequence: attacker primes TSTORE, then a different selector's auth-check passes | two-call sequence | ~30-60 min |
+| 1 | Missing auth on exposed fn (SWEAT) | **P1** — attacker's address must never appear in storage slots 0..7 after an arbitrary call | single call | ~7 min |
+| 2 | Kill-switch / selfdestruct | **P2** — target ETH balance must survive an arbitrary call | single call | ~7 min |
+| 3 | Rounding-direction inconsistency (Balancer) | **P6** — value-conservation over a bounded call sequence | multi-call sequence | ~1-3 h |
+| 4 | Near-zero denominator (Cetus) | **P5** — bounded input ⇒ bounded output (mechanism-specific; needs interface recovery) | single call + math compare | ~15-30 min |
+| 5 | Callback/transient auth (SIR) | **P4** — two-call sequence: attacker primes transient state, then a different selector's auth-check passes | two-call sequence | ~30-60 min |
 | 6 | Callback spoofing (Uniswap-style) | **P4-variant** — auth value derived from msg.sender/calldata instead of stored constant | single/two-call | ~15-30 min |
 | 7 | Uninitialized proxy / UUPS (classic) | **P3** — DELEGATECALL target must be a compile-time constant or EIP-1967 slot | single call + KCFG target check | ~15-30 min |
 | 8 | EIP-7702 delegate invariants | **P8** — sponsor cannot redirect without nonce/value/gas/target checks | direct delegate audit | n/a (not in dataset) |
-| M | Master profit oracle (SCONE-style) | **P7** — deal(attacker, 0) → N calls ⇒ attacker gained ≥ 0.1 ETH or target lost funds | N-call sequence | refiner for survivors |
+| M | Master profit oracle (SCONE-style) | **P7** — a bounded sequence of arbitrary calls must not let the attacker gain ETH or the target lose ETH | N-call sequence | refiner for survivors |
+
+> **Property classes P1–P4/P7 are ABI-agnostic** (they observe balances and
+> storage slots via the etched bytecode). P5/P6 are *mechanism* properties that
+> require selector/interface recovery (Stage 2.5); the P7 effect oracle is the
+> umbrella check for value extraction regardless of mechanism.
 
 ## Stage breakdown
 
-| Stage | Properties | Target set (radar) | Size | Compute | Status |
+| Stage | Properties | Target set (radar, metadata-stripped) | Size | Compute | Status |
 |---|---|---|---|---|---|
-| **0 — Foundation** | — | 69.8M deployments → 1,539,858 unique bytecodes | opcode radar, push-aware | DuckDB | ✅ DONE (parquet persisted) |
+| **0 — Foundation** | — | 69.8M deployments → 1,539,858 unique bytecodes | opcode radar + metadata strip | DuckDB | ✅ DONE (parquet persisted) |
 | **0.5 — Pilot** | P1, P2 | 8 triaged + 2 controls | 10 proofs | ~2 h local | ✅ DONE — 1 wild finding (FINDINGS_BATCH1.md) |
-| **1 — Cheap sweep** | P1, P2 | sstore_no_caller+delegate (19,670) ∪ selfdestruct+delegate (28,184), deployment-weighted triage | 40 now → ~5k total | ~7 min/small, ~25 min/large proof; CI matrix parallelizes | 🔄 CI sweep starting |
-| **2 — Deep auth** | P3, P4 | transient+caller (136,092), delegate (338,176) → triaged | ~1-2k | ~30-60 min/proof | next |
-| **3 — Math + profit** | P5, P6, P7 | AMM/math templates (div-heavy, bytecode-similar to known pools) + Stage-1/2 survivors | ~100s | 1-3 h/proof, resumable CFGs | later |
+| **1 — Cheap sweep** | P1, P2 (unified; no waves) | sstore_no_caller+delegate (18,347) ∪ selfdestruct+delegate (15,704), deployment-weighted | 40 now → ~5k total | ~7 min/small, ~25 min/large; CI matrix parallelizes | 🔄 sanity CI |
+| **2 — Deep auth** | P3, P4 | transient_caller (24,441 — real, post-strip), proxy_like (35,611) → triaged | ~1-2k | ~30-60 min/proof | 🔄 sanity CI |
+| **3 — Math + profit** | P7 (effect oracle over N calls; P5/P6 after interface recovery) | div-heavy non-trivial (994,532 raw) → triaged | ~100s | 1-3 h/proof, resumable CFGs | 🔄 sanity CI |
 | **4 — 7702 delegates** | P8 | 0xef0100-prefixed accounts (separate scan) | n/a | separate pipeline | n/a |
+
+> **Sanity gate (stage N.5):** before any full matrix, run the controls-only
+> chunk via `mode: sanity` and require it green (MUST-FAIL controls fail,
+> MUST-PASS controls pass). See `PIPELINE.md`.
 
 ## Compute compression table (Stage 1 = 5,000 targets)
 
