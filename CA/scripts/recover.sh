@@ -13,18 +13,16 @@ STOP=${1:-prove}
 bash $CA/scripts/env_setup.sh
 [ "$STOP" = "env" ] && exit 0
 
-# ---- stage: zip (restore from persistent cache, else download) ----
-mkdir -p $TC $CA/cache
+# ---- stage: zip (download to /tmp if missing; /workspaces is too small for caching) ----
+mkdir -p $TC
 for z in contracts bytecodes; do
   if [ ! -s $TC/$z.zip ]; then
-    if [ -s $CA/cache/$z.zip ]; then
-      cp $CA/cache/$z.zip $TC/$z.zip
-    else
-      curl -sL -o $TC/$z.zip https://huggingface.co/datasets/Zellic/all-ethereum-contracts/resolve/main/$z.zip
-      cp $TC/$z.zip $CA/cache/$z.zip   # persist for next time
-    fi
+    curl -sL -o $TC/$z.zip https://huggingface.co/datasets/Zellic/all-ethereum-contracts/resolve/main/$z.zip
   fi
 done
+# verify expected sizes
+[ "$(stat -c%s $TC/contracts.zip)" = "2251610719" ] || { echo "contracts.zip BAD"; exit 1; }
+[ "$(stat -c%s $TC/bytecodes.zip)" = "4139739279" ] || { echo "bytecodes.zip BAD"; exit 1; }
 ls -la $TC/*.zip
 [ "$STOP" = "zip" ] && exit 0
 
@@ -39,7 +37,7 @@ else
 fi
 [ "$STOP" = "db" ] && exit 0
 
-# ---- stage: scan (~31 min; skip if features table populated) ----
+# ---- stage: scan (SKIP the 31-min rescan — import from persistent parquet) ----
 N=$(python3 -c "
 import duckdb
 try:
@@ -48,7 +46,7 @@ try:
 except Exception:
     print(0)")
 if [ "$N" -lt 1539858 ]; then
-  python3 -u opcode_scan.py > opcode_scan.log 2>&1
+  python3 -u $CA/scripts/import_features.py     # 30s: reads data/opcode_features.parquet
 fi
 echo "opcode_features rows: $N"
 [ "$STOP" = "scan" ] && exit 0
@@ -60,10 +58,24 @@ if [ ! -d $HR ]; then
     bash -c 'forge init probe --no-git && cd probe && kontrol init --skip-forge'
   docker run --rm -u 0 -v /tmp/harness:/work --entrypoint bash $IMG -c 'chmod -R a+rwX /work'
 fi
-cp $CA/harness/src/*.sol $HR/src/ 2>/dev/null || true
+cp $CA/harness/src/*.sol $HR/src/
+# compile controls + extract runtime bytecode for the generator (needs solc: run in docker)
+docker run --rm -v /tmp/harness:/work -w /work/probe $IMG bash -c 'forge build' \
+  > $CA/harness/forge_build.log 2>&1 || { tail -5 $CA/harness/forge_build.log; exit 1; }
+docker run --rm -u 0 -v /tmp/harness:/work --entrypoint bash $IMG -c 'chmod -R a+rwX /work'
+python3 - <<'PYEOF'
+import json
+for name in ['VulnerableControl', 'SafeControl']:
+    d = json.load(open(f'/tmp/harness/probe/out/Controls.sol/{name}.json'))
+    bc = d['deployedBytecode']['object']
+    if bc.startswith('0x'):
+        bc = bc[2:]
+    open(f'/tmp/harness/{name}.hex', 'w').write(bc)
+    print(name, len(bc) // 2, 'bytes runtime code')
+PYEOF
 python3 $CA/scripts/gen_probe.py          # regenerates test/ProbeBatch1.sol
-cp $HR/test/ProbeBatch1.sol $CA/harness/generated/ 2>/dev/null || \
-  { mkdir -p $CA/harness/generated && cp $HR/test/ProbeBatch1.sol $CA/harness/generated/; }
+mkdir -p $CA/harness/generated
+cp $HR/test/ProbeBatch1.sol $CA/harness/generated/
 [ "$STOP" = "harness" ] && exit 0
 
 # ---- stage: build (kontrol build ~4.5 min; digest skips if unchanged) ----
