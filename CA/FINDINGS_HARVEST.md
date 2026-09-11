@@ -103,3 +103,14 @@ Full hash for #4:
   - Result: balance 1 ETH → 0 under attacker-controlled sequence
 - **Assessment:** weakest guard class of the campaign alongside F7 — zero-value prime suffices for a full drain. **Census + live-triage required immediately** (same pipeline as F4–F8: balancemulti + WSS USDC sweep over all 376 instances).
 - Cross-family: unrelated bytecode to F6/F7 (no shared selector), but same two-phase transient shape.
+
+### F9 live-funds census (complete, 0 missing queries)
+
+| Metric | Value |
+|---|---|
+| Instances | 376 |
+| ETH-funded | **194 (51.6%)** |
+| Total live ETH | **7.7870 (~$36.6K)** |
+| USDC holders | 0 |
+
+Pattern: ~190 instances hold exactly 0.012 ETH (uniform deposit/mint-fee fingerprint — an active protocol collecting per-user deposits into drainable proxies), plus `0xbce51130…02b5` (0.2 ETH) and `0x4d7abff0…079f` (0.1 ETH) outliers. **F9 jumps to the top of the escalation queue: ~$36.6K drainable via a prime=0 two-call sequence.**
