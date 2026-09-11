@@ -113,15 +113,21 @@ def main():
     ap.add_argument("--top", type=int, default=40, help="max funded instances to probe per target")
     args = ap.parse_args()
 
-    import duckdb
     stagedir = os.path.join(ROOT, "harness", "stages", f"stage{args.stage}")
     manifest = json.load(open(os.path.join(stagedir, "manifest.json")))
     verdicts, test2target = parse_verdicts(args.artifacts, manifest)
     failed = sorted(t for t, v in verdicts.items() if v == "FAILED")
     print(f"stage {args.stage}: {len(verdicts)} verdicts, {len(failed)} FAILED")
 
-    con = duckdb.connect("/tmp/eth-contracts/eth_contracts.duckdb", read_only=True)
-    con.execute("SET memory_limit='4GB'")
+    # DB is an optional cache; manifests embed deployment addresses so triage
+    # still works after /tmp is wiped.
+    con = None
+    try:
+        import duckdb
+        con = duckdb.connect("/tmp/eth-contracts/eth_contracts.duckdb", read_only=True)
+        con.execute("SET memory_limit='4GB'")
+    except Exception as e:
+        print(f"(no local DuckDB: {e}; using manifest-embedded addresses)")
     es_key = env("ETHERSCANV2_API_KEY")
     rpc = "https://eth-mainnet.g.alchemy.com/v2/" + (env("ALCHEMY_API_KEY") or "")
     usdc = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
@@ -137,9 +143,11 @@ def main():
             row["classification"] = "CONTROL_OR_UNMAPPED"
             report.append(row)
             continue
-        addrs = [a for (a,) in con.execute(
-            "SELECT address FROM contracts WHERE bytecode_hash = ?", [h]).fetchall()]
-        row["deployments"] = len(addrs)
+        addrs = tgt.get("addresses") or []
+        if not addrs and con is not None:
+            addrs = [a for (a,) in con.execute(
+                "SELECT address FROM contracts WHERE bytecode_hash = ?", [h]).fetchall()]
+        row["deployments"] = tgt.get("deployments", len(addrs))
         if not addrs:
             row["classification"] = "NO_DEPLOYMENTS"
             report.append(row)

@@ -230,6 +230,8 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--limit", type=int, default=8, help="max targets per query")
     ap.add_argument("--emit-chunks", default="", help="comma list; empty = all")
+    ap.add_argument("--addr-cap", type=int, default=500,
+                    help="max deployment addresses embedded per target (for offline triage)")
     ap.add_argument("--controls-only", action="store_true",
                     help="emit only chunk 0 (controls); no DB access")
     args = ap.parse_args()
@@ -248,8 +250,14 @@ def main():
         for class_name, sql in QUERIES[args.stage].items():
             rows = con.execute(sql.format(limit=args.limit)).fetchall()
             for h, ops, n in rows:
+                # embed a bounded, most-recent deployment sample so triage is
+                # self-contained (works after the /tmp DuckDB is wiped)
+                addrs = [a for (a,) in con.execute(
+                    "SELECT address FROM contracts WHERE bytecode_hash = ? "
+                    "ORDER BY blocknum DESC LIMIT ?", [h, args.addr_cap]).fetchall()]
                 targets.append({"hash": h, "ops": ops, "deployments": n,
-                                "class": class_name, "state_model": "ZEROED_SLOTS_0_7"})
+                                "class": class_name, "state_model": "ZEROED_SLOTS_0_7",
+                                "addresses": addrs})
 
     # controls are ALWAYS chunk 0
     if args.stage == 1:
