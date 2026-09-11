@@ -45,24 +45,31 @@ jobs:
           cp -r CA/harness/skeleton probe
           mkdir -p probe/test
           cp CA/harness/generated/ProbeChunk_${{ matrix.chunk }}.sol probe/test/
+          # container runs as uid 1010; open the tree so it can write out/, cache/
+          chmod -R a+rwX probe
 
       - name: kontrol build (docker)
         run: |
-          docker run --rm -v ${{ github.workspace }}/probe:/work/probe \
+          set -o pipefail
+          cd probe
+          docker run --rm -v "$PWD":/work/probe \
             -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
-            kontrol build --rekompile 2>&1 | tail -2
-          sudo chown -R $(id -u):$(id -g) probe
+            kontrol build --rekompile 2>&1 | tee build_output.log | tail -3
+          sudo chown -R $(id -u):$(id -g) .
 
       - name: kontrol prove (docker)
         run: |
-          docker run --rm -v ${{ github.workspace }}/probe:/work/probe \
+          set -o pipefail
+          cd probe
+          chmod -R a+rwX .
+          docker run --rm -v "$PWD":/work/probe \
             -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
             kontrol prove \
             --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_' \
             --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
             --no-fail-fast --workers 2 \
-            2>&1 | tee prove_output.log
-          sudo chown -R $(id -u):$(id -g) probe
+            2>&1 | tee prove_output.log | grep -E 'PROOF (PASSED|FAILED)|Running|Selected' || true
+          sudo chown -R $(id -u):$(id -g) .
 
       - name: Extract verdicts
         if: always()
@@ -79,4 +86,5 @@ jobs:
           path: |
             verdicts_chunk_${{ matrix.chunk }}.txt
             probe/prove_output.log
+            probe/build_output.log
             probe/out/kcfg/
