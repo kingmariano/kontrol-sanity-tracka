@@ -27,6 +27,30 @@ Meaning: an attacker can prime transient storage with a chosen value (Phase A),
 then pass the TLOAD-derived authorization on a second call (Phase B) — the exact
 SIR-class pattern, found independently in 4 unrelated bytecode families.
 
+## Live-funds triage (Blockscout, sampled instances)
+
+| # | Sample instance | State |
+|---|---|---|
+| 5 (S2-6) | `0x676e1c7b…11de` (block 5.9M, 2018-era) | pending check |
+| 6 (S2-10) | `0x04936955…1dae` (block 9.8M) | pending check |
+| 7 (S2-13) | `0x0b371778…63f6` (block 9.1M) | pending check |
+| 8 (S2-23) | `0x3952fe74…3201` (block 20.7M) | **0 ETH but holds 47 USDC — first live-value hit of the campaign**; 3 other sampled instances empty |
+| 4 (c5_3) | `0xf040b7c7…6D24` — **verified `SmartAccountProxy`** (2023) | 0.0002 ETH dust, has logs — smart-account family; re-verify first |
+
+## Inspectable instance addresses (copy-paste)
+```
+# F5 (S2-6, sel 0x44439209, hijack)
+0x676e1c7b4b297ce36706eacdfe6d7fb93e0211de
+# F6 (S2-10, prime 0x6b9f96ea / drain 0x00821de3)
+0x049369551ad83b3c76b0dc58c26b06a335e41dae
+# F7 (S2-13, sel 0x6b9f96ea, prime=0 trivial)
+0x0b371778885b6fc9bf12eccf41f2ae9eb9c563f6
+# F8 (S2-23, sel 0x19ab453c, SIR-shape, holds USDC)
+0x3952fe747D6967b3Cf53A84593a95114E7De3201
+# F4 suspect (c5_3, SmartAccountProxy, kore-crash verdict)
+0xf040b7c786a90852bf387D3Afc81d4E627236D24
+```
+
 ## Triage results (counterexample-level, from CI prove logs)
 
 | # | Assertion fired | Selector(s) | Model highlights | Assessment |
