@@ -28,7 +28,7 @@ on:
 jobs:
   prove:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       max-parallel: 6
@@ -43,12 +43,11 @@ jobs:
       - name: Install Kontrol
         uses: runtimeverification/install-kontrol@v1
 
-      - name: Materialize chunk test file
+      - name: Materialize project + chunk test file
         run: |
-          cp CA/harness/src/Controls.sol harness_src/Controls.sol 2>/dev/null || true
+          cp -r CA/harness/skeleton probe
           mkdir -p probe/test
-          cp CA/harness/generated/ProbeChunk_${{ matrix.chunk }}.sol probe/test/ || \
-            cp CA/harness/generated/ProbeBatch1.sol probe/test/
+          cp CA/harness/generated/ProbeChunk_${{ matrix.chunk }}.sol probe/test/
 
       - name: kontrol build
         run: |
@@ -59,7 +58,7 @@ jobs:
         run: |
           cd probe
           kontrol prove \
-            --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_${{ inputs.match }}' \
+            --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_' \
             --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
             --no-fail-fast --workers 2 \
             2>&1 | tee prove_output.log
@@ -71,17 +70,6 @@ jobs:
             > verdicts_chunk_${{ matrix.chunk }}.txt || true
           cat verdicts_chunk_${{ matrix.chunk }}.txt
 
-      - name: Extract counterexample models for failures
-        if: always()
-        run: |
-          cd probe
-          for t in $(grep 'PROOF FAILED' ../verdicts_chunk_${{ matrix.chunk }}.txt 2>/dev/null | wc -l >/dev/null && \
-                     kontrol list 2>/dev/null | grep -i failing || true); do
-            echo "$t" || true
-          done
-          # models for all failing nodes land in the log; keep everything
-          cp -r out/kcfg prove_kcfg_artifact/ 2>/dev/null || true
-
       - name: Upload findings
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,4 +78,4 @@ jobs:
           path: |
             verdicts_chunk_${{ matrix.chunk }}.txt
             probe/prove_output.log
-            probe_kcfg_artifact/
+            probe/out/kcfg/
