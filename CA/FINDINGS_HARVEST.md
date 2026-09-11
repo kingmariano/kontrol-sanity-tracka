@@ -90,3 +90,16 @@ Full hash for #4:
 - **8 confirmed property violations** across 8 independent bytecode families
 - ~40,000 deployments covered by failed proofs; ~700,000+ deployments mathematically cleared
 - Triage queue: get-model per hit → concrete selector/args → deployment census → live-funds check
+
+## 🚨 Finding #9 (S2-38, chunk 38 / test_p4_w39) — CONFIRMED, full ETH drain
+
+- **Bytecode:** `0x8824fcf9d1571b0d30d734c29b728e282437ef12747696a848581c112a971c8a`
+- **Family:** wild `transient_caller` [P4-HEAVY] — **376 deployments**
+- **Verdict:** `PROOF FAILED` with clean counterexample (run 34602954273, job chunk-38, artifact created 17:56 UTC)
+- **Assertion fired:** `P4-SD-AFTER-PRIME: 0 != 1000000000000000000` — target's full 1 ETH **drained to 0**
+- **Model:**
+  - Phase A: `selA = 0x05b34410`, **prime = 0** (trivial — no attacker-chosen value needed)
+  - Phase B: `selB = 0x0b5ab3d5`
+  - Result: balance 1 ETH → 0 under attacker-controlled sequence
+- **Assessment:** weakest guard class of the campaign alongside F7 — zero-value prime suffices for a full drain. **Census + live-triage required immediately** (same pipeline as F4–F8: balancemulti + WSS USDC sweep over all 376 instances).
+- Cross-family: unrelated bytecode to F6/F7 (no shared selector), but same two-phase transient shape.
