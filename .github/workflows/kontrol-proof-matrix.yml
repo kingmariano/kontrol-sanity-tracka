@@ -1,0 +1,93 @@
+# Kontrol proof matrix — horizontal scale-out for the bytecode probe campaign.
+#
+# Each job proves one chunk of generated probe tests in parallel. Chunk files
+# (test/ProbeChunk_<i>.sol) are generated locally by gen_probe.py --chunk and
+# committed, so runners need zero dataset access.
+#
+# Cost note (private repo): GitHub Free includes 2,000 Actions-minutes/month.
+# ubuntu-latest = 4 vCPU / 16 GB RAM (meets Kontrol's 16 GB requirement).
+# A ~25-min proof = ~25 billable minutes => ~80-100 proofs/month free.
+# Workflows on PUBLIC repos run free (unlimited) — consider a public audit repo.
+#
+# Usage: workflow_dispatch with inputs:
+#   chunks: "0,1,2,3"   (chunk indices to prove)
+#   match:  regex       (default all probes in the chunk)
+
+name: kontrol-proof-matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      chunks:
+        description: 'Chunk indices to prove (comma-separated)'
+        default: '0,1,2,3'
+      match:
+        description: 'kontrol --match-test regex'
+        default: '.*'
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        chunk: ${{ fromJSON(format('[{0}]', inputs.chunks)) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Kontrol
+        uses: runtimeverification/install-kontrol@v1
+
+      - name: Materialize chunk test file
+        run: |
+          cp CA/harness/src/Controls.sol harness_src/Controls.sol 2>/dev/null || true
+          mkdir -p probe/test
+          cp CA/harness/generated/ProbeChunk_${{ matrix.chunk }}.sol probe/test/ || \
+            cp CA/harness/generated/ProbeBatch1.sol probe/test/
+
+      - name: kontrol build
+        run: |
+          cd probe
+          kontrol build --rekompile 2>&1 | tail -2
+
+      - name: kontrol prove
+        run: |
+          cd probe
+          kontrol prove \
+            --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_${{ inputs.match }}' \
+            --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
+            --no-fail-fast --workers 2 \
+            2>&1 | tee prove_output.log
+
+      - name: Extract verdicts
+        if: always()
+        run: |
+          grep -E 'PROOF (PASSED|FAILED)|Time:' probe/prove_output.log \
+            > verdicts_chunk_${{ matrix.chunk }}.txt || true
+          cat verdicts_chunk_${{ matrix.chunk }}.txt
+
+      - name: Extract counterexample models for failures
+        if: always()
+        run: |
+          cd probe
+          for t in $(grep 'PROOF FAILED' ../verdicts_chunk_${{ matrix.chunk }}.txt 2>/dev/null | wc -l >/dev/null && \
+                     kontrol list 2>/dev/null | grep -i failing || true); do
+            echo "$t" || true
+          done
+          # models for all failing nodes land in the log; keep everything
+          cp -r out/kcfg prove_kcfg_artifact/ 2>/dev/null || true
+
+      - name: Upload findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-results-chunk-${{ matrix.chunk }}
+          path: |
+            verdicts_chunk_${{ matrix.chunk }}.txt
+            probe/prove_output.log
+            probe_kcfg_artifact/
