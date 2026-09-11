@@ -22,6 +22,20 @@
 - `0xe8601eab…1b67`: no ERC-20 holdings
 - All unverified, all created by the same mass-deployer factory → dormant batch, no funds at risk
 
+## Inspectable instance addresses (copy-paste)
+```
+0xdD5C8639e251AF43d7f14743307B4D5d965926Fe
+0x4ddBdb40A4AdF0d8a219d9D6dfee3AC22cF9325D
+0xe8601eab9fb5c40ceee24e7919907a97b0461b67
+0x059aa2fd5daad06ba511c15b83cd452ceb423958
+0x43441347d139dcbd92d1351ab083af51b6f85aa4
+```
+
+- Etherscan: https://etherscan.io/address/0xdD5C8639e251AF43d7f14743307B4D5d965926Fe
+- Creator factory (deployed all 10,029): `0xf6874c88757721a02f47592140905c4336DfBc61`
+- Vulnerable function selector: `0x19ab453c`
+- Full runtime bytecode hash: `0x038cfd30a54785c310890eb5dbca5667cb56f069e624efd7011271f8880ca497`
+
 ## Verdict
 Property violation mathematically confirmed; exploit monetization would require
 one of these 10,029 contracts to have ever held funds or privileges — none did.
