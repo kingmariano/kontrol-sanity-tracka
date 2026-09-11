@@ -1,0 +1,141 @@
+# Reusable per-stage Kontrol proof matrix.
+#
+# Called by stage1-cheap.yml / stage2-deepauth.yml / stage3-math.yml.
+# Design:
+#   * plan job derives the chunk list (manifest or explicit override)
+#   * one matrix job per chunk, one `kontrol prove` invocation per test, so a
+#     timeout never erases verdicts already produced
+#   * `mode: sanity` runs ONLY chunk 0 (the ground-truth controls) — the
+#     "stage N.5" gate. Do not fire the full matrix until sanity is green.
+#   * KCFG checkpoints are uploaded; re-dispatch with resume_run_id to continue
+#   * verdicts + prove logs are uploaded for the offline live-gate triage
+name: stage-matrix
+
+on:
+  workflow_call:
+    inputs:
+      stage:
+        required: true
+        type: string
+      chunks:
+        description: 'Comma-separated chunk indices; empty = all from manifest'
+        required: false
+        default: ''
+        type: string
+      resume_run_id:
+        required: false
+        default: ''
+        type: string
+      mode:
+        description: 'sanity (controls only) | full'
+        required: false
+        default: 'full'
+        type: string
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.plan.outputs.chunks }}
+      stage: ${{ inputs.stage }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: |
+          python3 - "${{ inputs.stage }}" "${{ inputs.mode }}" "${{ inputs.chunks }}" <<'PY' > "$GITHUB_OUTPUT"
+          import json, sys, glob, os
+          stage, mode, override = sys.argv[1], sys.argv[2], sys.argv[3]
+          if mode == "sanity":
+              chunks = [0]
+          elif override.strip():
+              chunks = [int(x) for x in override.split(",") if x.strip()]
+          else:
+              m = f"CA/harness/stages/stage{stage}/manifest.json"
+              chunks = [c["chunk"] for c in json.load(open(m))["chunks"]]
+          print("chunks=" + json.dumps(chunks))
+          PY
+      - run: echo "stage=${{ inputs.stage }} mode=${{ inputs.mode }} chunks=${{ steps.plan.outputs.chunks }}"
+
+  prove:
+    needs: plan
+    if: ${{ needs.plan.outputs.chunks != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        chunk: ${{ fromJSON(needs.plan.outputs.chunks) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      STAGE: ${{ inputs.stage }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Materialize project + chunk file
+        run: |
+          cp -r CA/harness/skeleton probe
+          mkdir -p probe/test
+          cp CA/harness/stages/stage${STAGE}/Stage${STAGE}Chunk_${{ matrix.chunk }}.sol probe/test/
+          chmod -R a+rwX probe
+
+      - name: Resume KCFG checkpoint (optional)
+        if: ${{ inputs.resume_run_id != '' }}
+        run: |
+          mkdir -p probe/out/kcfg
+          gh run download ${{ inputs.resume_run_id }} \
+            -n stage${STAGE}-kcfg-chunk-${{ matrix.chunk }} -D /tmp/kcfg_resume \
+            || echo "no checkpoint on that run"
+          [ -d /tmp/kcfg_resume/kcfg ] && cp -r /tmp/kcfg_resume/kcfg/. probe/out/kcfg/ || true
+          chmod -R a+rwX probe
+
+      - name: kontrol build (docker)
+        run: |
+          set -o pipefail
+          cd probe
+          docker run --rm -v "$PWD":/work/probe -w /work/probe \
+            runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+            kontrol build 2>&1 | tee build_output.log | tail -3
+          sudo chown -R $(id -u):$(id -g) .
+
+      - name: kontrol prove (one invocation per test)
+        run: |
+          cd probe
+          chmod -R a+rwX .
+          V=verdicts_chunk_${{ matrix.chunk }}.txt; : > "$V"
+          while IFS= read -r t; do
+            [ -z "$t" ] && continue
+            echo "=== c${{ matrix.chunk }}: $t ===" | tee -a "$V" prove_output.log
+            timeout 300m docker run --rm -v "$PWD":/work/probe -w /work/probe \
+              runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+              kontrol prove \
+              --match-test "${t}" \
+              --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 --workers 2 \
+              2>&1 | tee -a prove_output.log \
+              | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
+              || echo "=== $t INCOMPLETE (timeout/error; kcfg checkpointed) ===" >> "$V"
+            sudo chmod -R a+rwX .
+          done < CA/harness/stages/stage${STAGE}/chunk_${{ matrix.chunk }}.tests
+          sudo chown -R $(id -u):$(id -g) .
+
+      - name: Extract verdicts
+        if: always()
+        run: cat probe/verdicts_chunk_${{ matrix.chunk }}.txt || true
+
+      - name: Upload verdicts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage${{ inputs.stage }}-results-chunk-${{ matrix.chunk }}
+          path: |
+            probe/verdicts_chunk_${{ matrix.chunk }}.txt
+            probe/prove_output.log
+            probe/build_output.log
+
+      - name: Upload KCFG checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage${{ inputs.stage }}-kcfg-chunk-${{ matrix.chunk }}
+          path: probe/out/kcfg/
+          retention-days: 14

@@ -2,5 +2,10 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+test = "test"
+# EIP-1153 (TSTORE/TLOAD) controls require Cancun; pin solc so the bytecode is
+# reproducible between the host and the Kontrol docker image.
+evm_version = "cancun"
+solc = "0.8.24"
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+# See more config options https://github.com/foundry-rs/foundry/tree/master/crates/config

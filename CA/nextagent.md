@@ -1,5 +1,17 @@
 # 🤝 nextagent.md — Campaign Handoff (write date: 2026-09-11, ~20:00 UTC)
 
+> ## ⚠️ UPDATE 2026-09-11 ~21:30 UTC (next agent)
+> **F9 (§2 row 9, §3) is NOT a live zero-day.** The proven drain requires
+> `slot5 == 0`, but all 194 funded instances have `slot5 = 1`; `0x0b5ab3d5`
+> reverts `InvalidJump` on them (verified via `eth_call`), and a `slot5=0`
+> state-override makes it succeed. The payout address is `slot2` (a third-party
+> EOA), never the caller. Machine-checked in `CA/poc/` (5/5 tests).
+> Full analysis: **`CA/FINDING_9_S2-38.md`**. See §9 below.
+>
+> Also: Stage 2 run completed → `rerun-failed-jobs` POSTed (HTTP 201, queued).
+> Stage 1 chunks 12–15 were failing instantly because the in-flight run's SHA
+> predates those files → new dispatch **34649498066** (chunks 12–15) queued.
+
 Read this fully before acting. It is the complete state of the smart-contract
 zero-day audit campaign. You are continuing an ongoing operation; the human
 operator ("the user") is actively directing it in chat.
@@ -67,7 +79,7 @@ Full details in `CA/FINDINGS_HARVEST.md`, `CA/FINDINGS_BATCH1.md`,
 | 6 (S2-10) | `0x6f83343a…4c534df0` | 752 | 3,004 | prime `0x6b9f96ea` → drain `0x00821de3` | CONFIRMED (primable drain) | dormant |
 | 7 (S2-13) | `0x3b7d6f59…5e904a06` | 264 | 2,116 | `0x6b9f96ea` both phases | CONFIRMED (prime=0 trivial) | dormant |
 | 8 (S2-23) | `0x1aba7e71…4307e3d9` | 972 | 971 | `0x19ab453c` both phases | CONFIRMED (SIR-shape) | **47.0 USDC on flagship** |
-| **9 (S2-38)** | `0x8824fcf9…2a971c8a` | ~1142B | **376** | `0x05b34410`, `0x0b5ab3d5`, +8 more | **CONFIRMED — full ETH drain** | **7.787 ETH (~$36.6K), 194/376 funded** |
+| **9 (S2-38)** | `0x8824fcf9…2a971c8a` | ~1142B | **376** | `0x05b34410`, `0x0b5ab3d5`, +8 more | property violation (slot5=0 model) — **LIVE EXPLOIT REJECTED** | 194/376 funded but **all slot5=1 → sweep reverts; payout is slot2, not attacker** (`FINDING_9_S2-38.md`) |
 
 ### Key instance addresses (copy-paste)
 ```
@@ -92,7 +104,12 @@ F9: 194 ETH-funded (7.787 ETH), 0 USDC. Raw CSVs: `CA/data/census/`.
 
 ---
 
-## 3. F9 DEEP-DIVE — partial disassembly (CRITICAL for the in-flight PoC)
+## 3. F9 DEEP-DIVE — RESOLVED: not a live zero-day (see `FINDING_9_S2-38.md`)
+
+**Outcome (next agent):** the PoC was built at `CA/poc/` and the open question is
+answered. The recipient is `slot2`; the sweep is enabled only when `slot5 == 0`;
+all funded instances have `slot5 = 1` → `InvalidJump`, no drain. The disassembly
+below is correct and retained for reference.
 
 User asked for a **realistic Foundry PoC in a `poc/` folder** draining the full
 7.787 ETH to an attacker EOA. Work started: the runtime bytecode (1,142 B) was
@@ -120,18 +137,15 @@ disassembled. Findings so far:
   (gate passes) and slot2==0x0 → `0x0b5ab3d5` alone drains the full balance
   **to the zero address**. That's why the counterexample needed only selB
   (selA was a no-op getter).
-- **OPEN QUESTION (resolve via Dedaub decompile of the addresses above):**
-  on wild instances, slot2 is usually the protocol/deployer — so the
-  permissionless call force-sweeps the balance to slot2 (drain confirmed, but
-  attacker-profit depends on who slot2 is / whether it can be set). The P4
-  proof proves *contract drained by anyone*; attacker-profitability needs the
-  decompile or an instance where slot2 is attack-reachable. About 190
-  instances hold exactly 0.012 ETH (uniform per-user deposit fingerprint —
-  an ACTIVE protocol collecting funds into these).
-- **PoC plan (next step):** `poc/` Foundry project with (a) a deterministic
-  etch-based test replicating the counterexample, and (b) a **mainnet-fork**
-  test calling `0x0b5ab3d5` on the real funded instances above, asserting
-  `TARGET.balance == 0` and tracking the recipient. Then commit to the repos.
+- **OPEN QUESTION — RESOLVED (no Dedaub needed):** live storage reads show
+  slot0=owner contract `0x012233b3…` (fixed), slot2 ∈ {0x0, `0x5fc8a61e…`,
+  `0x4811e699…`, `0x5c19cf6b…`} (third-party EOAs, owner-set only), and
+  **slot5=1 on all 194 funded instances**. `0x0b5ab3d5` requires slot5==0, so it
+  reverts (`InvalidJump`) on every funded instance; a state-override to slot5=0
+  makes it drain — to slot2, not the caller. **F9 is not attacker-profitable.**
+- **PoC — DONE:** `CA/poc/` Foundry project (5/5 tests) with (a) deterministic
+  etch tests replicating the counterexample and (b) mainnet-fork tests proving
+  the live gate (`FINDING_9_S2-38.md`). Commit to the repos.
 
 ---
 
@@ -167,8 +181,9 @@ Working sweep scripts (in `CA/scripts/`): `es_eth_sweep.py` (Etherscan ETH),
 
 | Repo | Run | What | State |
 |---|---|---|---|
-| `kingmariano/kontrol-stage1-sweep` | 34592498729 | Wave 1 rerun (chunks 2,6,7,10,12–15; `rerun-failed-jobs` 201 dispatched ~19:05 UTC) | in_progress |
-| `kingmariano/kontrol-stage2-deepauth` | 34602954273 | 34/49 success; 8 cancelled (chunks 0,5,8,12,14,15,18,19) — **rerun-failed-jobs must be POSTed after the run completes** (earlier attempt 403 "already running"); 7 chunks still in flight | in_progress |
+| `kingmariano/kontrol-stage1-sweep` | 34592498729 | Wave 1 rerun chunks 2,6,7,10 (those files exist at the old SHA); **chunks 12–15 failed instantly because the old SHA lacks them** | in_progress (4 jobs) |
+| `kingmariano/kontrol-stage1-sweep` | **34649498066** | NEW dispatch (2026-09-11 21:27) for chunks 12–15 on current `main` | queued |
+| `kingmariano/kontrol-stage2-deepauth` | 34602954273 | run completed: 34 success / 15 cancelled → **`rerun-failed-jobs` POSTed (HTTP 201, queued)** | rerun queued |
 | `kingmariano/kontrol-f4-reproof` | **34639568835** | F4 kore-crash re-proof, 3 solver regimes: default (depth 1000/smt 10s), shallow (250/5s), smtheavy (2000/60s) × 4 tests (p4_two_phase, p1_sstore_no_caller, p7_drain_oracle, VulnerableTransient CONTROL-must-FAIL) | in_progress |
 
 Poll commands:
@@ -181,8 +196,11 @@ curl -s -H "Authorization: Bearer $GK" \
 ```
 Artifact naming: stage1 `probe-results-chunk-N`, stage2 `stage2-results-chunk-N`,
 f4 `f4-reproof-<variant>` + `f4-kcfg-<variant>`.
-**When Stage 2 run completes: POST `rerun-failed-jobs` for the 8 cancelled chunks.**
-Watch for more FAILED chunks (F9 was found this way — chunk 38, test_p4_w39).
+**Stage 2 rerun is now POSTed** (`rerun-failed-jobs`, HTTP 201, queued) for its 15
+cancelled chunks. Poll it; when it lands, harvest FAILED verdicts.
+Watch for more FAILED chunks (F9 was found this way — chunk 38, test_p4_w39) —
+**but before calling any balance-drain a live risk, read the real guard slot(s)
+via `eth_getStorageAt`** (F9 lesson: the proof ran with storage zeroed).
 
 ### F4 re-proof decision matrix (when run 34639568835 lands)
 - FAILED with model on p4/p1/p7 → F4 = CONFIRMED, drain calldata in hand → escalate.
@@ -201,12 +219,13 @@ Watch for more FAILED chunks (F9 was found this way — chunk 38, test_p4_w39).
 3. ✅ F8 kept as-is (proof already clean; no rework).
 4. ✅ Bug breakdowns of F4/F8 written (`CA/BREAKDOWN_F4_F8.md`).
 5. ✅ Poll Stage 1 + Stage 2 → harvested → **found F9**.
-6. 🔄 **IN PROGRESS: realistic Foundry PoC in a `poc/` folder** draining the
-   whole 7.787 ETH to an attacker EOA — see §3 for the disassembly state and
-   the open recipient question. **This is the immediate next task.**
-7. User is decompiling F9 on **Dedaub** (unverified code) using the addresses
-   in §2 — incorporate whatever they learn (esp. slot2/slot5 semantics and the
-   `0xbbe42771` claim path).
+6. ✅ **DONE: Foundry PoC built at `CA/poc/`** — but the honest result is that
+   the 7.787 ETH is **NOT drainable**: all funded instances have slot5=1 and the
+   payout is slot2. See §3 and `FINDING_9_S2-38.md`. **The "drain to attacker"
+   objective is not achievable; do not pursue it further.**
+7. ✅ F9 question resolved from live storage (no Dedaub needed): slot0=owner
+   contract, slot2=third-party recipient, slot5=1 gate. **Next: apply the same
+   guard-slot check to F4/F6/F7/F8 before any live-funds claim.**
 8. **Wave 2 (P1b/P2b value-write-sensitive properties) fires when Wave 1
    completes** — add `--wave` flag to `CA/scripts/gen_probe.py` (user-confirmed directive).
 9. Stage 2.5: selector-DB interface recovery (4byte.directory) for calldata shaping.
@@ -246,5 +265,26 @@ Watch for more FAILED chunks (F9 was found this way — chunk 38, test_p4_w39).
   0=owner, 1=uint(getter 0x05b34410), 2=recipient-A, 3=recipient-B,
   4=uint threshold/counter, 5=claimed-flag(&0xff).
 - ETH ≈ $4,700/ETH assumed in estimates.
+
+## 9. LIVE-GATE RE-CHECK (2026-09-11, after the F9 correction)
+
+Full write-up: **`CA/LIVE_GATE_RECHECK.md`**. Result: **no live-exploitable
+permissionless drain in F4–F9.**
+
+| Family | Guard | Funded | Live guard state | Verdict |
+|---|---|---|---|---|
+| F4 proxy | `slot0==0` to `initialize` | 873 | **873/873 `slot0!=0`** | rejected |
+| F5 `setSpender` | `CALLER==0x65b0bf8e…` (hardcoded) | 2 dust | gate constant | rejected |
+| F6 | — | 0 | — | dormant |
+| F7 `flush()` | none (pays fixed `destinationAddress()`) | 0 | — | dormant |
+| F8 `init` | `slot1==0` | 9 | **8/8 code-bearing `slot1!=0`; 9th codeless** | rejected |
+| F9 `sweep` | `slot5&0xff==0` | 194 | **194/194 `slot5=1`** | rejected |
+
+PoC: `CA/poc/` (8/8 tests pass with `MAINNET_RPC_URL`). New methodology rules:
+(1) read the real guard slot before any "funds at risk" claim; (2) `eth_getCode`
+each funded address (codeless census entries exist — F8 `0xd1c68218`); (3) the
+`sig_transient` radar is contaminated by solc metadata trailers (`0x5c/0x5d` in
+`a165627a7a…`/`a26469706673…`) — strip metadata before re-scanning Stage 2;
+(4) hardcoded-address gates (F5) are P1 false positives.
 
 — end of handoff —

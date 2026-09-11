@@ -1,7 +1,14 @@
 # Findings Harvest — Stage 1 Wave 1 + Stage 2 Deep-Auth (CI batches)
 
 **Date:** 2026-09-11 · **Sources:** kontrol-stage1-sweep (Wave 1) + kontrol-stage2-deepauth
-**Status:** all properties CONFIRMED violations by symbolic proof; live-funds triage pending for the new batch
+**Status:** properties CONFIRMED as *model* violations; **live-gate re-check (2026-09-11)
+found NO live-exploitable drain for F4–F9** — see `LIVE_GATE_RECHECK.md`.**
+
+> ⚠️ **Live-gate summary:** F4 — 873/873 funded initialized (`slot0!=0`), rejected.
+> F5 — hardcoded-owner gate + dust, rejected. F6/F7 — dormant. F8 — 8/8 code-bearing
+> funded initialized (`slot1!=0`); 47 USDC safe; the lone "uninitialized" entry is a
+> codeless account. F9 — all funded `slot5=1`, sweep reverts. **No live funds were
+> drainable via any proven path.**
 
 ## Stage 2 P4 transient-auth hits (4 wild families)
 
@@ -91,7 +98,16 @@ Full hash for #4:
 - ~40,000 deployments covered by failed proofs; ~700,000+ deployments mathematically cleared
 - Triage queue: get-model per hit → concrete selector/args → deployment census → live-funds check
 
-## 🚨 Finding #9 (S2-38, chunk 38 / test_p4_w39) — CONFIRMED, full ETH drain
+## ⚠️ Finding #9 (S2-38, chunk 38 / test_p4_w39) — property violation, LIVE EXPLOIT REJECTED
+
+> **CORRECTION (next agent, 2026-09-11):** the "full ETH drain" below is a
+> **zeroed-storage model artifact**, not a live exploit. All 194 funded instances
+> have `slot5 = 1`; the public sweep `0x0b5ab3d5` requires `slot5 == 0` and
+> otherwise reverts (`InvalidJump`). `eth_call` against live instances confirms
+> the revert; a `slot5=0` state-override makes it succeed. Even then the payout
+> goes to `slot2` (a third-party EOA), never the caller. Machine-checked in
+> `CA/poc/` (5/5 tests). Full analysis: **`CA/FINDING_9_S2-38.md`**. The text
+> below is retained as the original (pre-correction) record.
 
 - **Bytecode:** `0x8824fcf9d1571b0d30d734c29b728e282437ef12747696a848581c112a971c8a`
 - **Family:** wild `transient_caller` [P4-HEAVY] — **376 deployments**
@@ -113,4 +129,4 @@ Full hash for #4:
 | Total live ETH | **7.7870 (~$36.6K)** |
 | USDC holders | 0 |
 
-Pattern: ~190 instances hold exactly 0.012 ETH (uniform deposit/mint-fee fingerprint — an active protocol collecting per-user deposits into drainable proxies), plus `0xbce51130…02b5` (0.2 ETH) and `0x4d7abff0…079f` (0.1 ETH) outliers. **F9 jumps to the top of the escalation queue: ~$36.6K drainable via a prime=0 two-call sequence.**
+Pattern: ~190 instances hold exactly 0.012 ETH (uniform deposit/mint-fee fingerprint — an active protocol collecting per-user deposits), plus two 2.0 ETH instances, one 1.0 ETH, and `0xbce51130…02b5` (0.2 ETH) / `0x4d7abff0…079f` (0.1 ETH) outliers. **NOT drainable: all 194 funded instances have `slot5=1`, which disables the public sweep — see the correction above and `CA/FINDING_9_S2-38.md`.**

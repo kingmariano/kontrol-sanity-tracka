@@ -26,6 +26,25 @@ BATCH = 20_000
 PUSH_LUT = np.zeros(256, dtype=np.int64)
 PUSH_LUT[0x60:0x80] = np.arange(1, 33)
 
+
+def strip_metadata(code: bytes):
+    """Remove the solc/vyper metadata trailer before opcode scanning.
+
+    The trailer is `<cbor metadata><2-byte big-endian length>`. Without this,
+    metadata bytes (and any PUSH in them) are decoded as code, which is what
+    produced phantom `sig_transient` hits on F5-F8 (no real TLOAD/TSTORE).
+    Returns (stripped_code, had_metadata).
+    """
+    n = len(code)
+    if n < 4:
+        return code, False
+    length = int.from_bytes(code[-2:], "big")
+    if 1 <= length <= 4096 and length + 2 <= n:
+        cand = code[-(length + 2):-2]
+        if (b"bzzr" in cand) or (b"ipfs" in cand) or (b"solc" in cand):
+            return code[:-(length + 2)], True
+    return code, False
+
 TRACK = {
     0x33: "caller", 0x54: "sload", 0x55: "sstore",
     0xf4: "delegatecall", 0xf2: "callcode", 0xf1: "call",
@@ -59,6 +78,7 @@ def operand_mask(arr: np.ndarray) -> np.ndarray:
     return covered
 
 def analyze(code: bytes):
+    code, had_md = strip_metadata(code)
     arr = np.frombuffer(code, dtype=np.uint8)
     covered = operand_mask(arr)
     ops = arr[~covered]
@@ -76,19 +96,29 @@ def analyze(code: bytes):
     f["sig_proxy_like"] = f["delegatecall"] > 0 and n_ops <= 30
     f["sig_div_heavy"] = f["div"] >= 3
     f["n_ops"] = n_ops
+    f["has_metadata"] = had_md
+    f["code_size_eff"] = len(code)
     return f
 
 SIGS = ["sig_auth_sstore", "sig_sstore_no_caller", "sig_transient",
         "sig_transient_caller", "sig_selfdestruct", "sig_delegate",
-        "sig_proxy_like", "sig_div_heavy", "n_ops"]
+        "sig_proxy_like", "sig_div_heavy", "n_ops", "has_metadata",
+        "code_size_eff"]
+
+BOOL_COLS = {"has_metadata"}
+BIGINT_COLS = {"n_ops"}
 
 COLS = ([f"c_{n}" for n in TRACK.values()] + SIGS)
 
 def create_table(con):
     con.execute("DROP TABLE IF EXISTS opcode_features")
-    cols_sql = ", ".join(
-        f"{c} {'BOOLEAN' if c.startswith('sig_') else ('BIGINT' if c == 'n_ops' else 'INTEGER')}"
-        for c in COLS)
+    def sqltype(c):
+        if c.startswith("sig_") or c in BOOL_COLS:
+            return "BOOLEAN"
+        if c in BIGINT_COLS:
+            return "BIGINT"
+        return "INTEGER"
+    cols_sql = ", ".join(f"{c} {sqltype(c)}" for c in COLS)
     con.execute(f"CREATE TABLE opcode_features (bytecode_hash VARCHAR PRIMARY KEY, {cols_sql})")
 
 def main():

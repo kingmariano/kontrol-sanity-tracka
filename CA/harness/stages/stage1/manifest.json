@@ -1,0 +1,15 @@
+{
+ "stage": 1,
+ "wave": 1,
+ "chunks": [
+  {
+   "chunk": 0,
+   "class": "CONTROLS",
+   "tests": [
+    "test_control_vulnerable",
+    "test_control_safe"
+   ],
+   "targets": []
+  }
+ ]
+}

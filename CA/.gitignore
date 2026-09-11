@@ -1,3 +1,6 @@
 .env
 cline.env
 cache/
+out/
+__pycache__/
+*.log

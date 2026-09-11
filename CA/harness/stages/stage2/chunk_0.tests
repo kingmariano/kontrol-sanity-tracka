@@ -1,0 +1,4 @@
+test_control_vulnerable_transient
+test_control_safe_transient
+test_control_naive_proxy
+test_control_safe_proxy
