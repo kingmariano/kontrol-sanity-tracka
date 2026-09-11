@@ -1,17 +1,18 @@
 # Kontrol proof matrix — horizontal scale-out for the bytecode probe campaign.
 #
-# Each job proves one chunk of generated probe tests in parallel. Chunk files
-# (test/ProbeChunk_<i>.sol) are generated locally by gen_probe.py --chunk and
-# committed, so runners need zero dataset access.
-#
-# Cost note (private repo): GitHub Free includes 2,000 Actions-minutes/month.
-# ubuntu-latest = 4 vCPU / 16 GB RAM (meets Kontrol's 16 GB requirement).
-# A ~25-min proof = ~25 billable minutes => ~80-100 proofs/month free.
-# Workflows on PUBLIC repos run free (unlimited) — consider a public audit repo.
+# Design invariants (battle-tested via the light-batch protocol):
+#   1. SIZE-CLASS CHUNKING: gen_probe.py guarantees GIANT targets (>1500 ops)
+#      get a chunk of their own — a giant can only ever block itself.
+#   2. ONE PROVE INVOCATION PER TEST: each verdict flushes to the verdicts file
+#      the moment it completes. A timeout never erases finished results.
+#   3. KCFG CHECKPOINT/RESUME: the proof state (out/kcfg) is uploaded even on
+#      timeout; re-dispatch with resume_run_id to CONTINUE a giant's proof
+#      across runs — full --max-depth 1000 semantics, paid in installments.
 #
 # Usage: workflow_dispatch with inputs:
-#   chunks: "0,1,2,3"   (chunk indices to prove)
-#   match:  regex       (default all probes in the chunk)
+#   chunks:        "0,1,2"              (chunk indices to prove)
+#   resume_run_id: <run id> optional    (download kcfg artifacts from that run
+#                                       and continue the proofs from there)
 
 name: kontrol-proof-matrix
 
@@ -21,17 +22,19 @@ on:
       chunks:
         description: 'Chunk indices to prove (comma-separated)'
         default: '0,1,2,3'
-      match:
-        description: 'kontrol --match-test regex'
-        default: '.*'
+      resume_run_id:
+        description: 'Optional run ID to resume KCFG checkpoints from'
+        default: ''
 
 jobs:
   prove:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: 20
       matrix:
         chunk: ${{ fromJSON(format('[{0}]', inputs.chunks)) }}
     steps:
@@ -48,6 +51,18 @@ jobs:
           # container runs as uid 1010; open the tree so it can write out/, cache/
           chmod -R a+rwX probe
 
+      - name: Resume KCFG checkpoint (if requested)
+        if: ${{ inputs.resume_run_id != '' }}
+        run: |
+          mkdir -p probe/out/kcfg
+          gh run download ${{ inputs.resume_run_id }} \
+            -n probe-kcfg-chunk-${{ matrix.chunk }} -D /tmp/kcfg_resume \
+            || echo "no kcfg artifact on that run — starting fresh"
+          if [ -d /tmp/kcfg_resume/kcfg ]; then
+            cp -r /tmp/kcfg_resume/kcfg/. probe/out/kcfg/
+          fi
+          chmod -R a+rwX probe
+
       - name: kontrol build (docker)
         run: |
           set -o pipefail
@@ -57,26 +72,32 @@ jobs:
             kontrol build --rekompile 2>&1 | tee build_output.log | tail -3
           sudo chown -R $(id -u):$(id -g) .
 
-      - name: kontrol prove (docker)
+      # One prove invocation per test. `timeout 300m` bounds each test just
+      # under the job ceiling; its kcfg is checkpointed by the upload steps.
+      - name: kontrol prove (docker, one invocation per test)
         run: |
-          set -o pipefail
           cd probe
           chmod -R a+rwX .
-          docker run --rm -v "$PWD":/work/probe \
-            -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
-            kontrol prove \
-            --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_.*' \
-            --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
-            --no-fail-fast --workers 2 \
-            2>&1 | tee prove_output.log | grep -E 'PROOF (PASSED|FAILED)|Running|Selected' || true
-          sudo chown -R $(id -u):$(id -g) .
+          V=verdicts_chunk_${{ matrix.chunk }}.txt; : > "$V"
+          TESTS=$(grep -o 'function test_probe_[A-Za-z0-9_]*' \
+            test/ProbeChunk_${{ matrix.chunk }}.sol | awk '{print $2}')
+          for t in $TESTS; do
+            echo "=== test_probe_c: $t ===" | tee -a "$V" prove_output.log
+            timeout 300m docker run --rm -v "$PWD":/work/probe \
+              -w /work/probe runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
+              kontrol prove \
+              --match-test 'ProbeChunk_${{ matrix.chunk }}.test_probe_'"$t" \
+              --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 \
+              --workers 2 \
+              2>&1 | tee -a prove_output.log \
+              | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
+              || echo "=== $t INCOMPLETE (timeout/error — kcfg checkpointed) ===" >> "$V"
+            sudo chown -R $(id -u):$(id -g) .
+          done
 
       - name: Extract verdicts
         if: always()
-        run: |
-          grep -E 'PROOF (PASSED|FAILED)|Time:' probe/prove_output.log \
-            > verdicts_chunk_${{ matrix.chunk }}.txt || true
-          cat verdicts_chunk_${{ matrix.chunk }}.txt
+        run: cat verdicts_chunk_${{ matrix.chunk }}.txt || true
 
       - name: Upload findings
         if: always()
@@ -87,4 +108,11 @@ jobs:
             verdicts_chunk_${{ matrix.chunk }}.txt
             probe/prove_output.log
             probe/build_output.log
-            probe/out/kcfg/
+
+      - name: Upload KCFG checkpoint (resume point)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-kcfg-chunk-${{ matrix.chunk }}
+          path: probe/out/kcfg/
+          retention-days: 14

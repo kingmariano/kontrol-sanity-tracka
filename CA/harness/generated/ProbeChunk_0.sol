@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 
 contract ProbeChunk_0 is Test {
 
-    // sstore_no_caller_delegate (193,532 deployments): 0xcc51f2662e47ac26308e1d5858fca3f7a28fc3f6dce017d2e9019f76927ed74e (514 ops)
+    // sstore_no_caller_delegate [SMALL] (193,532 deployments): 0xcc51f2662e47ac26308e1d5858fca3f7a28fc3f6dce017d2e9019f76927ed74e (514 ops)
     function test_probe_c0_0(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
@@ -31,7 +31,7 @@ contract ProbeChunk_0 is Test {
     }
 
 
-    // selfdestruct_delegate (39,703 deployments): 0xb717380f5c9a74d593369fc6cef2762a8f31b2801cf341b973dad0f8af7b8da3 (74 ops)
+    // selfdestruct_delegate [SMALL] (39,703 deployments): 0xb717380f5c9a74d593369fc6cef2762a8f31b2801cf341b973dad0f8af7b8da3 (74 ops)
     function test_probe_c0_1(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
@@ -56,7 +56,7 @@ contract ProbeChunk_0 is Test {
     }
 
 
-    // sstore_no_caller_delegate (19,130 deployments): 0xf9e2d36819eab1d19e19372266a32e00cb30b02a96732fa6174ccdb560ba1907 (509 ops)
+    // sstore_no_caller_delegate [SMALL] (19,130 deployments): 0xf9e2d36819eab1d19e19372266a32e00cb30b02a96732fa6174ccdb560ba1907 (509 ops)
     function test_probe_c0_2(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
@@ -81,7 +81,7 @@ contract ProbeChunk_0 is Test {
     }
 
 
-    // selfdestruct_delegate (13,914 deployments): 0xe152e0d0626438840037db419d2e66fa32002f1ee719b1dbe2892314bc67b6de (230 ops)
+    // selfdestruct_delegate [SMALL] (13,914 deployments): 0xe152e0d0626438840037db419d2e66fa32002f1ee719b1dbe2892314bc67b6de (230 ops)
     function test_probe_c0_3(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
@@ -106,7 +106,7 @@ contract ProbeChunk_0 is Test {
     }
 
 
-    // sstore_no_caller_delegate (19,074 deployments): 0xe25d4f154acb2394ee6c18d64fb5635959ba063d57f83091ec9cf34be16224d7 (266 ops)
+    // sstore_no_caller_delegate [SMALL] (19,074 deployments): 0xe25d4f154acb2394ee6c18d64fb5635959ba063d57f83091ec9cf34be16224d7 (266 ops)
     function test_probe_c0_4(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {

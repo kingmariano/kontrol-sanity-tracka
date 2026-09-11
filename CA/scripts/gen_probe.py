@@ -97,7 +97,11 @@ def main():
         out_path = OUT
         contract = "ProbeBatch1"
     else:
-        # chunked sweep: interleave both signal classes, deployment-weighted
+        # chunked sweep: SIZE-CLASS PARTITIONING
+        # A job is only as slow as its slowest member -> a GIANT (>1500 ops)
+        # always gets a chunk of its own, MID (601-1500) pairs up, SMALL (<=600)
+        # groups in fives. Deployment-weighted interleaving is preserved inside
+        # each class so both signal classes stay represented.
         sets = {label: con.execute(sql).fetchall()
                 for label, sql in CANDIDATE_QUERIES.items()}
         flat = []
@@ -105,12 +109,43 @@ def main():
             for label in CANDIDATE_QUERIES:
                 if sets[label]:
                     flat.append((label, sets[label].pop(0)))
-        lo = args.chunk * args.chunk_size
-        sel = flat[lo:lo + args.chunk_size]
-        for label, (h, ops, n) in sel:
+
+        chunks = []  # list of (class, [(label, hash, ops, n), ...])
+        small, mid = [], []
+        for label, (h, ops, n) in flat:
+            item = (label, h, ops, n)
+            if ops > 1500:
+                chunks.append(("GIANT", [item]))
+            elif ops > 600:
+                mid.append(item)
+                if len(mid) == 2:
+                    chunks.append(("MID", mid)); mid = []
+            else:
+                small.append(item)
+                if len(small) == 5:
+                    chunks.append(("SMALL", small)); small = []
+        if mid:
+            chunks.append(("MID", mid))
+        if small:
+            chunks.append(("SMALL", small))
+
+        # deterministic manifest for the CI workflow (chunk -> tests + class)
+        import json
+        manifest = [
+            {"chunk": ci, "class": cls,
+             "tests": [f"test_probe_c{ci}_{i}" for i in range(len(sel))],
+             "targets": [{"hash": h, "ops": ops, "deployments": n}
+                         for label, h, ops, n in sel]}
+            for ci, (cls, sel) in enumerate(chunks)
+        ]
+        with open("/tmp/harness/probe/test/chunk_manifest.json", "w") as f:
+            json.dump(manifest, f, indent=1)
+
+        cls, sel = chunks[args.chunk]
+        for i, (label, h, ops, n) in enumerate(sel):
             parts.append(TEMPLATE.format(
-                label=f"{label} ({n:,} deployments)", hash=h, ops=ops,
-                fname=f"c{args.chunk}_{idx}", idx=idx, code=fetch_code(con, h)))
+                label=f"{label} [{cls}] ({n:,} deployments)", hash=h, ops=ops,
+                fname=f"c{args.chunk}_{i}", idx=idx, code=fetch_code(con, h)))
             idx += 1
         out_path = f"/tmp/harness/probe/test/ProbeChunk_{args.chunk}.sol"
         contract = f"ProbeChunk_{args.chunk}"
