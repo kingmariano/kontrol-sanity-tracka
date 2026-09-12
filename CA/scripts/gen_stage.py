@@ -46,10 +46,12 @@ QUERIES = {
             GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
     },
     2: {
+        # A transient two-phase (SIR-class) pattern needs a TSTORE then a TLOAD;
+        # a lone TLOAD is not a two-phase write and over-selects (stage-2 FP).
         "P4_TWO_PHASE": """
             SELECT o.bytecode_hash, o.n_ops, count(*) n
             FROM opcode_features o JOIN contracts c USING (bytecode_hash)
-            WHERE o.sig_transient_caller AND o.n_ops BETWEEN 80 AND 1500
+            WHERE o.sig_transient_caller AND o.c_tstore > 0 AND o.n_ops BETWEEN 80 AND 1500
             GROUP BY 1,2 ORDER BY n DESC, 1 ASC LIMIT {limit}""",
         "P3_PROXY": """
             SELECT o.bytecode_hash, o.n_ops, count(*) n

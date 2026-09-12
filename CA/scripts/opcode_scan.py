@@ -90,7 +90,8 @@ def analyze(code: bytes):
     f["sig_auth_sstore"] = f["caller"] > 0 and f["sstore"] > 0
     f["sig_sstore_no_caller"] = f["sstore"] > 0 and f["caller"] == 0
     f["sig_transient"] = f["tstore"] > 0 or f["tload"] > 0
-    f["sig_transient_caller"] = (f["tstore"] > 0 or f["tload"] > 0) and f["caller"] > 0
+    # require a real TSTORE: a lone TLOAD is not a two-phase write (stage-2 FP fix)
+    f["sig_transient_caller"] = f["tstore"] > 0 and f["caller"] > 0
     f["sig_selfdestruct"] = f["selfdestruct"] > 0
     f["sig_delegate"] = f["delegatecall"] > 0
     f["sig_proxy_like"] = f["delegatecall"] > 0 and n_ops <= 30
