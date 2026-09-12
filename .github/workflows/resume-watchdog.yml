@@ -1,0 +1,169 @@
+# resume-watchdog — make the Kontrol matrix self-healing across the 6h/350m cap.
+#
+# Triggers:
+#   * workflow_run (immediate): when a caller finishes, look for chunks that did
+#     not produce a PASSED/FAILED verdict and resume just those, with the KCFG
+#     checkpoint from that run.
+#   * schedule (safety net, every 30 min): catches resumes that never chained
+#     (GitHub's GITHUB_TOKEN anti-recursion applies to most events; the schedule
+#     guarantees progress even if workflow_run chaining is suppressed).
+#   * workflow_dispatch (manual, with optional dry_run).
+#
+# Termination guards (no infinite loops):
+#   * overlap: never dispatch while a run of the same caller is active/queued.
+#   * progress: compare against the previous same-head-sha run; if the incomplete
+#     set did not shrink, stop resuming.
+#   * runaway: cap caller runs started in the last 6h.
+#
+# KCFG resume: re-dispatches with resume_run_id=<this run>, so each job downloads
+# stage<N>-kcfg-chunk-M from it and `kontrol prove` continues from saved state.
+name: resume-watchdog
+
+on:
+  workflow_run:
+    workflows: [stage1-cheap, stage2-deepauth, stage3-math, tracka-batch1, tracka-batch2, tracka-batch3]
+    types: [completed]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'log only, do not dispatch'
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: resume-watchdog
+  cancel-in-progress: false
+
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan completed runs and resume incomplete chunks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TRIGGER_RUN: ${{ github.event.workflow_run.id }}
+          DRY: ${{ inputs.dry_run && '1' || '' }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, re, datetime, sys
+
+          REPO = os.environ["REPO"]
+          TRIGGER = os.environ.get("TRIGGER_RUN") or ""
+          DRY = os.environ.get("DRY") == "1"
+
+          STAGE = {"stage1-cheap": "1", "stage2-deepauth": "2", "stage3-math": "3",
+                   "tracka-batch1": "tracka_batch1", "tracka-batch2": "tracka_batch2",
+                   "tracka-batch3": "tracka_batch3"}
+          MODE = {"stage1-cheap": "full", "stage2-deepauth": "full", "stage3-math": "full",
+                  "tracka-batch1": "sanity", "tracka-batch2": "sanity", "tracka-batch3": "sanity"}
+          CALLERS = list(STAGE)
+
+          def gh(*a):
+              return subprocess.check_output(["gh", *a], text=True)
+
+          def api(path):
+              return json.loads(gh("api", path))
+
+          def runs(name, n=20):
+              return api(f"repos/{REPO}/actions/workflows/{name}/runs?per_page={n}")["workflow_runs"]
+
+          def dt(s):
+              return datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+          def now():
+              return datetime.datetime.now(datetime.timezone.utc)
+
+          def verdicts_complete(run_id, stage, chunk, tests):
+              name = f"stage{stage}-results-chunk-{chunk}"
+              d = f"/tmp/wd/{run_id}/{name}"
+              try:
+                  gh("run", "download", str(run_id), "-R", REPO, "-n", name, "-D", d)
+              except subprocess.CalledProcessError:
+                  return False
+              txt = ""
+              for root, _, files in os.walk(d):
+                  for f in files:
+                      if f.startswith("verdicts_chunk_"):
+                          txt += open(os.path.join(root, f), errors="ignore").read()
+              for t in tests:
+                  m = re.search(rf"===\s*c\d+:\s*{re.escape(t)}\s*===\s*(.*?)(?====|\Z)", txt, re.S)
+                  if not m:
+                      return False
+                  if not re.search(r"PROOF (PASSED|FAILED)", m.group(1)):
+                      return False
+              return True
+
+          def target_runs():
+              if TRIGGER:
+                  r = api(f"repos/{REPO}/actions/runs/{TRIGGER}")
+                  return [r] if r.get("status") == "completed" else []
+              out = []
+              for n in CALLERS:
+                  rs = [r for r in runs(n, 5) if r["status"] == "completed"]
+                  if rs:
+                      out.append(rs[0])
+              return out
+
+          acted = 0
+          for run in target_runs():
+              name = run.get("name")
+              stage = STAGE.get(name)
+              if not stage:
+                  continue
+              rec = runs(name, 20)
+              if any(r["status"] in ("in_progress", "queued", "waiting", "pending") for r in rec):
+                  print(f"[skip] {name}: another run is active/queued")
+                  continue
+              # runaway cap: caller runs started in the last 6h
+              recent = sum(1 for r in rec if (now() - dt(r["created_at"])).total_seconds() < 6 * 3600)
+              if recent > 8:
+                  print(f"[skip] {name}: runaway cap ({recent} runs/6h)")
+                  continue
+              man = json.load(open(f"CA/harness/stages/stage{stage}/manifest.json"))
+              arts = api(f"repos/{REPO}/actions/runs/{run['id']}/artifacts?per_page=100")["artifacts"]
+              # infer mode so a completed sanity run (only chunk 0) is not mistaken
+              # for an incomplete full run, and vice-versa.
+              if name.startswith("tracka"):
+                  mode, cand = "sanity", [ch for ch in man["chunks"] if ch["chunk"] == 0]
+              else:
+                  got = sorted(int(m.group(1)) for a in arts
+                               for m in [re.search(rf"stage{stage}-results-chunk-(\d+)$", a["name"])] if m)
+                  if len(man["chunks"]) > 1 and got == [0]:
+                      mode, cand = "sanity", [ch for ch in man["chunks"] if ch["chunk"] == 0]
+                  else:
+                      mode, cand = "full", man["chunks"]
+              incomplete = [ch["chunk"] for ch in cand
+                            if not verdicts_complete(run["id"], stage, ch["chunk"], ch["tests"])]
+              if not incomplete:
+                  print(f"[ok] {name} {run['id']}: all candidate chunks complete (mode={mode})")
+                  continue
+              # progress guard vs previous run with the same head_sha
+              prev = next((r for r in rec if r["id"] != run["id"]
+                           and r.get("head_sha") == run.get("head_sha")
+                           and (now() - dt(r["created_at"])).total_seconds() < 24 * 3600), None)
+              if prev:
+                  pin = [ch["chunk"] for ch in cand
+                         if not verdicts_complete(prev["id"], stage, ch["chunk"], ch["tests"])]
+                  # only treat as no-progress when there *was* prior incompleteness
+                  if pin and len(incomplete) >= len(pin):
+                      print(f"[stop] {name}: no progress vs run {prev['id']} "
+                            f"({len(incomplete)} >= {len(pin)} incomplete); not resuming")
+                      continue
+              chunks = ",".join(str(c) for c in sorted(incomplete))
+              print(f"[resume] {name} {run['id']}: chunks={chunks} "
+                    f"(resume_run_id={run['id']}, mode={MODE[name]})")
+              if not DRY:
+                  gh("workflow", "run", name, "-R", REPO,
+                     "-f", f"mode={mode}", "-f", f"chunks={chunks}",
+                     "-f", f"resume_run_id={run['id']}")
+              acted += 1
+          print(f"done; resumes dispatched={acted}")
+          PY
