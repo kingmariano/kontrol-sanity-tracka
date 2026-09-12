@@ -39,27 +39,36 @@ never locally.** Each repo gets 20 parallel CI jobs. /tmp is volatile.
 
 | Stage | What | Status |
 |---|---|---|
-| 0 — Radar | opcode scan (push-aware) over 69.8M contracts → `CA/data/opcode_features.parquet` (69.5MB, on GitHub) | ✅ done |
-| 1 — Cheap sweep | P1 (`sstore` no auth) / P2 (`selfdestruct` reachability), 40 targets → 5k planned | 🔄 Wave 1 8/16 chunks done; rerun in flight |
-| 2 — Deep auth | P4 two-phase transient (SIR-class) + P3-lite proxy; 49 chunks / 84 targets | 🔄 34+ success, 8 cancelled (rerun pending), rest in flight |
-| 3 — Math/profit | P5/P6/P7 (AMM rounding, profit oracle) | later |
+| 0 — Radar | metadata-stripped opcode scan over 69.8M deployments → `CA/data/opcode_features.parquet` (~69MB, on GitHub) | ✅ done |
+| 1 — Cheap sweep | P1 unprotected write (`sstore_no_caller`+`delegate`) / P2 balance+`selfdestruct` | ✅ sanity green; 78 targets / 53 chunks; full pending |
+| 2 — Deep auth | P4 two-phase transient (SIR-class) + P3 proxy (naive-proxy hijack) | sanity re-run in flight; 80 targets / 29 chunks |
+| 3 — Math/profit | P7 div-heavy profit oracle | sanity re-run in flight; 40 targets / 25 chunks |
 | 2.5 | selector-DB interface recovery (4byte.directory) for calldata shaping | planned |
 | 4 — 7702 | P8 delegate accounts | n/a |
 
 Property templates P1–P8 are defined in `CA/STAGES.md` with case studies
 (SIR, Balancer, SWEAT, Cetus, SCONE-bench) in `CA/ZERO_DAY_RESEARCH.md`.
 
-### Harness conventions (v4.2, battle-tested — do not change)
-- Foundry project per repo from `CA/harness/skeleton/` (forge-std + kontrol-cheatcodes in `lib/`).
-- Test files: `vm.etch(target, hex"<runtime bytecode>")`, `vm.deal(target, 1 ether)`,
-  slots 0–7 zeroed via `vm.store`, `vm.prank(attacker)` with **symbolic attacker**,
-  symbolic calldata args. One `kontrol prove --match-test '<Contract>.<test>'`
-  invocation per test, `--auto-abstract-gas --workers 2`, verdicts flushed to
-  `verdicts_chunk_N.txt` per test, KCFG checkpoints uploaded as artifacts
-  (resume via `resume_run_id` input + `gh run download`).
+### Harness conventions (v5, battle-tested — do not change)
+- Foundry project per repo from `CA/harness/skeleton/` (forge-std in `lib/`).
+- Every probe contract inherits `ProbeBase` (`skeleton/src/ProbeBase.sol`), which
+  etches a storage-instrumented MockERC20 (embedded runtime) at USDC/WETH/USDT/DAI.
+- Test shape: `vm.etch(target, hex"<runtime bytecode>")`, `vm.deal(target, 1 ether)`,
+  slots 0–15 zeroed **and snapshotted** via `vm.store`/`vm.load`, `vm.prank(attacker)`
+  with **symbolic attacker** and symbolic calldata args.
+- Property suite (all asserted every probe): `P_BALANCE_LOST`, `P_ATTACKER_PROFIT`,
+  `P_STORAGE_CHANGED` (any of slots 0–15 changed), `P_AUTH_WRITE` (attacker value in
+  a slot), and `_checkTokens` → `P_TOKEN_OUTFLOW`/`P_TOKEN_APPROVAL`/`P_TOKEN_TO_ATTACKER`.
+- One `kontrol prove --match-test '<bare test name>'` per test (**bare name, not
+  `Contract.test`**), `--auto-abstract-gas --max-depth 1000 --smt-timeout 10000
+  --workers 2`, verdicts flushed to `verdicts_chunk_N.txt` per test, KCFG
+  checkpoints uploaded as artifacts (resume via `resume_run_id` + `gh run download`).
 - chmod dance between tests (container uid 1010 vs runner): `sudo chmod -R a+rwX .`
-- CONTROL tests must hold: VulnerableTransient → FAILED, SafeTransient → PASS,
-  NaiveProxy → FAIL. If controls break, the run is void.
+- Chunk 0 is ALWAYS the control batch and must hold:
+  stage 1 → VulnerableControl FAIL / SafeControl PASS;
+  stage 2 → VulnerableTransient FAIL / SafeTransient PASS / NaiveProxy FAIL / SafeProxy PASS;
+  stage 3 → VulnerableProfit FAIL / SafeProfit PASS / VulnerableAmplify FAIL / SafeAmplify PASS.
+  If controls break, the run is void.
 
 ---
 
@@ -243,17 +252,24 @@ via `eth_getStorageAt`** (F9 lesson: the proof ran with storage zeroed).
 - Docs: DATASET.md, KONTROL.md, KONTROL_SETUP.md, STAGES.md, ZERO_DAY_RESEARCH.md,
   FINDINGS_HARVEST.md (ledger + F9), FINDINGS_BATCH1.md, FINDING_2_c1_1.md,
   FINDING_3_c0_2.md, BREAKDOWN_F4_F8.md, CENSUS_LIVE_FUNDS.md, RADAR.md (data/)
-- Harness: `CA/harness/skeleton/` (foundry+kontrol project), `CA/harness/src/Controls.sol`,
-  `CA/harness/src/Stage15Controls.sol`, `CA/harness/generated/` (16 Stage-1 chunks),
-  `CA/harness/generated2/` (49 Stage-2 chunks + manifest)
-- Generators: `CA/scripts/gen_probe.py` (stage-1 chunker, needs `--wave` for Wave 2),
-  `gen_stage15.py`, `gen_stage2.py`, `import_features.py`, `export_radar.py`,
-  `opcode_scan.py`, `ingest.py`+`finalize.py` (rebuild DB; finalize handles a
-  known NULL-hash assert), `recover.sh` (idempotent environment recovery — run first after any /tmp wipe)
-- Local DB: `/tmp/eth-contracts/eth_contracts.duckdb` (23.6GB; tables
-  contracts/bytecodes/opcode_features; bytecodes PK = `bytecode_hash`, code column = `bytecode`)
-- Workflows: `.github/workflows/kontrol-proof-matrix.yml` (v4.2, stage 1),
-  `kontrol-stage2-matrix.yml`; f4 repo has its own `kontrol-f4-reproof.yml`
+- Harness: `CA/harness/skeleton/` (foundry+kontrol project; single source of
+  truth for control Solidity + `ProbeBase.sol`), `CA/harness/controls/*.hex`
+  (compiled control runtime bytecode), `CA/harness/stages/stage{1,2,3}/`
+  (generated chunks + `chunk_*.tests` + `manifest.json`)
+- Generators/tools: `CA/scripts/gen_stage.py` (unified per-stage target
+  generator; SINGLE/TWO_PHASE/PROXY/MULTI templates), `opcode_scan.py`
+  (metadata-stripped radar), `triage_live.py` (offline live-gate),
+  `hf_sync.py` (HF dataset sync), `import_features.py`, `export_radar.py`,
+  `ingest.py`+`finalize.py` (rebuild DB; finalize handles a known NULL-hash
+  assert), `recover.sh` (idempotent recovery — run first after any /tmp wipe)
+- Local DB: `/tmp/eth-contracts/eth_contracts.duckdb` (23.6GB; reproducible;
+  tables contracts/bytecodes/opcode_features; bytecodes PK = `bytecode_hash`,
+  code column = `bytecode`)
+- Workflows: `.github/workflows/stage-matrix.yml` (reusable, `mode: sanity|full`)
+  + callers `stage1-cheap.yml`, `stage2-deepauth.yml`, `stage3-math.yml`
+- Repos: `origin`=zany-xylophone (control tower), `sweep`=kontrol-stage1-sweep,
+  `stage2`=kontrol-stage2-deepauth, `san{1,2,3}`=throwaway sanity clones
+  (same tree pushed to each; caller runs from that repo)
 
 ## 8. QUICK FACTS FOR ORIENTATION
 
