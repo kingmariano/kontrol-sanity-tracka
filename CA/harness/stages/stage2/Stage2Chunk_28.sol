@@ -8,9 +8,13 @@ contract Stage2Chunk_28 is ProbeBase {
     // P3_PROXY [24 ops, 31,177 deployments] 0x650f27d51d8c85925499254bf1851151156874468991e2f9ec87b8155d079983
     function test_p3_c28_0(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");
         address target = address(uint160(0x2000000 + 0));
+        vm.assume(attacker != target);
         vm.etch(target, hex"363d3d373d3d3d363d7332716de33ea7195b2016de930a756bf202ee2edd5af43d82803e903d91602b57fd5bf3");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -34,9 +38,13 @@ contract Stage2Chunk_28 is ProbeBase {
     // P3_PROXY [24 ops, 30,679 deployments] 0xafe24e1c1090fb0bb2767bc0df9a9f031a54033f7506363ef453174f8ebe21ac
     function test_p3_c28_1(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");
         address target = address(uint160(0x2000000 + 1));
+        vm.assume(attacker != target);
         vm.etch(target, hex"363d3d373d3d3d363d73933fbfeb4ed1f111d12a39c2ab48657e6fc875c65af43d82803e903d91602b57fd5bf3");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -60,9 +68,13 @@ contract Stage2Chunk_28 is ProbeBase {
     // P3_PROXY [24 ops, 30,500 deployments] 0x06c526f7c962e3371b3794f7ccf4d24757962606cf354a49b551f14f30b993c3
     function test_p3_c28_2(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");
         address target = address(uint160(0x2000000 + 2));
+        vm.assume(attacker != target);
         vm.etch(target, hex"363d3d373d3d3d363d73b2ce9dfa531ad026eebbc1964685845743c614335af43d82803e903d91602b57fd5bf3");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -86,9 +98,13 @@ contract Stage2Chunk_28 is ProbeBase {
     // P3_PROXY [24 ops, 30,500 deployments] 0xc109ab8d65189cfe0c1305bb91cb136c385883e34ec590e9b769c90da53b5dc4
     function test_p3_c28_3(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");
         address target = address(uint160(0x2000000 + 3));
+        vm.assume(attacker != target);
         vm.etch(target, hex"363d3d373d3d3d363d733a5fb753285ac3a67c6b0d03e121921b2a1428be5af43d82803e903d91602b57fd5bf3");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -112,9 +128,13 @@ contract Stage2Chunk_28 is ProbeBase {
     // P3_PROXY [24 ops, 30,371 deployments] 0xa1bd70cc0fd5c69c14af44101b6ea38301e15fcf09a18e8e623605bb6c56a87d
     function test_p3_c28_4(bytes4 selector, uint256 a, address attacker) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"608060405260043610601e575f3560e01c80639890220b14603857601f565b5b3373ffffffffffffffffffffffffffffffffffffffff16ff5b603e6040565b005b3373ffffffffffffffffffffffffffffffffffffffff16fffea26469706673582212202aaf1843a3d134ce069aebac6cd12d191d733a2b2dc558dd495574aa91c19ddb64736f6c63430008180033");
         address target = address(uint160(0x2000000 + 4));
+        vm.assume(attacker != target);
         vm.etch(target, hex"363d3d373d3d3d363d735fdcaaf9fd567a7a8384be7c466170c7070d269d5af43d82803e903d91602b57fd5bf3");
         vm.deal(target, 1 ether);
         _etchTokens();

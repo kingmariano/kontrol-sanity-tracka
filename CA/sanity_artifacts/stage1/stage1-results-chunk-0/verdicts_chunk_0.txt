@@ -1,0 +1,4 @@
+=== c0: test_control_vulnerable ===
+❌ PROOF FAILED ❌ 
+=== c0: test_control_safe ===
+✨ PROOF PASSED ✨ 

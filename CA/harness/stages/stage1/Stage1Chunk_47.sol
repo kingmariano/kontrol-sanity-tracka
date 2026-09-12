@@ -11,7 +11,11 @@ contract Stage1Chunk_47 is ProbeBase {
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x1000000 + 0));
+        vm.assume(attacker != target);
         vm.etch(target, hex"3d3d3d3d363d3d37603d6035363936603d013d7308ce97807a81896e85841d74fb7e7b065ab3ef055af43d3d93803e603357fd5bf3b16c1342e617a5b6e4b631eb114483fdb289c0a45b6ac51d9b1cede0068a1b26533cace807f883eecf5a5dff8669836d53990b1a493bccbad8b124b601");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -37,7 +41,11 @@ contract Stage1Chunk_47 is ProbeBase {
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x1000000 + 1));
+        vm.assume(attacker != target);
         vm.etch(target, hex"3d3d3d3d363d3d37603d6035363936603d013d73cd80c916b1194beb48abf007d0b79a7238436d565af43d3d93803e603357fd5bf3b16c1342e617a5b6e4b631eb114483fdb289c0a45b6ac51d9b1cede0068a1b26533cace807f883ee2ee6af0dff3a1ce3f7e3414c52c48fd50d73691e01");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -63,7 +71,11 @@ contract Stage1Chunk_47 is ProbeBase {
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x1000000 + 2));
+        vm.assume(attacker != target);
         vm.etch(target, hex"606060405236156100305763ffffffff60e060020a6000350416631698755f811461008457806341c0e1b5146100b5575b6100825b66038d7ea4c67fff193401600081111561007d5760008054604051600160a060020a03909116913480156108fc02929091818181858888f19350505050151561007d5760006000fd5b5b5b50565b005b341561008c57fe5b6100a3600160a060020a03600435166024356100c7565b60408051918252519081900360200190f35b34156100bd57fe5b610082610196565b005b600066038d7ea4c6800083600160a060020a031631101580156100ea5750600082115b1561018a5782600160a060020a031660405180807f7472616e7366657228616464726573732c75696e7432353629000000000000008152506019019050604051809103902060e060020a90046000604051602001526040518163ffffffff1660e060020a0281526004018090506020604051808303818660325a03f4151561016e57fe5b505060405151151590506101825760006000fd5b50600161018f565b506000195b5b92915050565b60005433600160a060020a039081169116146101b25760006000fd5b600054600160a060020a0316ff5b5b5600a165627a7a72305820dd666736e3dfec44cb439fd6f1e6628a7d3f97b74279b39fda0320b14940f1bf0029");
         vm.deal(target, 1 ether);
         _etchTokens();

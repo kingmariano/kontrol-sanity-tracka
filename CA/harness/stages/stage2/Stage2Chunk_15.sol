@@ -11,7 +11,11 @@ contract Stage2Chunk_15 is ProbeBase {
         bytes4 selA, uint256 prime, bytes4 selB, uint256 a, uint256 b, address attacker
     ) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x2000000 + 0));
+        vm.assume(attacker != target);
         vm.etch(target, hex"0089504e470d0a1a0a0000000d4948445200000020000000200806000000737a7af4000000017352474200aece1ce900000060494441545885edd2bb0d80300c45515b620c26635cd6a0cd1e4e6b07115ba441e29ef6e5f3ac44040080bfd3ea4233b3db6655cdb2e502e1f0e696efc39d0f5956644b1bfa294f171cb52c931608ae97d944f90f88c4e718279c6500007c5a07788023fe40d5ff650000000049454e44ae426082");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -39,7 +43,11 @@ contract Stage2Chunk_15 is ProbeBase {
         bytes4 selA, uint256 prime, bytes4 selB, uint256 a, uint256 b, address attacker
     ) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x2000000 + 1));
+        vm.assume(attacker != target);
         vm.etch(target, hex"00000300010a01e66b31678d6c16e9ebf358268a790b763c13375000000000000000000000000000e4005cf5402600000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000000000000000000000000000000000000000000000000000000000000000000000000000000000006982508145454ce325ddbe47a25d4ec3d231193300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
         vm.deal(target, 1 ether);
         _etchTokens();

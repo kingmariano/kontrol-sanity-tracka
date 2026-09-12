@@ -78,7 +78,11 @@ contract Stage{stage}Chunk_{chunk} is ProbeBase {{
 """
 
 SETUP = """        vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x{base:x} + {idx}));
+        vm.assume(attacker != target);
         vm.etch(target, hex"{code}");
         vm.deal(target, 1 ether);
         _etchTokens();
@@ -114,9 +118,13 @@ MULTI = "\n    // {label}\n    function {name}(\n        bytes4 s1, uint256 x1, 
 PROXY = """    // {label}
     function {name}(bytes4 selector, uint256 a, address attacker) public {{
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address canary = address(uint160(0xC0DEC0DE));
         vm.etch(canary, hex"{killer}");
         address target = address(uint160(0x{base:x} + {idx}));
+        vm.assume(attacker != target);
         vm.etch(target, hex"{code}");
         vm.deal(target, 1 ether);
         _etchTokens();

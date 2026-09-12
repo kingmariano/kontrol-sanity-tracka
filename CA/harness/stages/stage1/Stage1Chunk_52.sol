@@ -11,7 +11,11 @@ contract Stage1Chunk_52 is ProbeBase {
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
         vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
         address target = address(uint160(0x1000000 + 0));
+        vm.assume(attacker != target);
         vm.etch(target, hex"3d3d3d3d363d3d37603d6035363936603d013d7308ce97807a81896e85841d74fb7e7b065ab3ef055af43d3d93803e603357fd5bf3b16c1342e617a5b6e4b631eb114483fdb289c0a45b6ac51d9b1cede0068a1b26533cace807f883ee4ab6d8ff68330d844a3056ea2f8179a7e19759ff01");
         vm.deal(target, 1 ether);
         _etchTokens();
