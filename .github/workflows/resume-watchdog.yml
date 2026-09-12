@@ -113,6 +113,7 @@ jobs:
               return out
 
           acted = 0
+          summary = []
           for run in target_runs():
               name = run.get("name")
               stage = STAGE.get(name)
@@ -156,14 +157,31 @@ jobs:
                   if pin and len(incomplete) >= len(pin):
                       print(f"[stop] {name}: no progress vs run {prev['id']} "
                             f"({len(incomplete)} >= {len(pin)} incomplete); not resuming")
+                      summary.append(f"⛔ {name}: no progress vs #{prev['id']}; stopped")
                       continue
               chunks = ",".join(str(c) for c in sorted(incomplete))
               print(f"[resume] {name} {run['id']}: chunks={chunks} "
-                    f"(resume_run_id={run['id']}, mode={MODE[name]})")
+                    f"(resume_run_id={run['id']}, mode={mode})")
+              summary.append(f"🔄 resumed {name} #{run['id']} ({len(incomplete)} chunks, mode={mode})")
               if not DRY:
                   gh("workflow", "run", name, "-R", REPO,
                      "-f", f"mode={mode}", "-f", f"chunks={chunks}",
                      "-f", f"resume_run_id={run['id']}")
               acted += 1
           print(f"done; resumes dispatched={acted}")
+          if summary:
+              open("/tmp/wd_summary.txt", "w").write(
+                  "🛟 Kontrol resume-watchdog\n\n" + "\n".join(summary))
           PY
+
+      - name: Telegram notify
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -s /tmp/wd_summary.txt ]; then
+            python3 CA/scripts/telegram.py send --text-file /tmp/wd_summary.txt || true
+          else
+            echo "no watchdog summary to send"
+          fi

@@ -1,0 +1,82 @@
+# telegram-bot — always-on campaign watcher.
+#
+#  * workflow_run completed -> immediate "which workflow finished" notice
+#  * schedule (10 min)      -> command poll, staleness alerts, fallback resume,
+#                              and a refreshed live status board (URL buttons)
+#  * workflow_dispatch      -> run any mode on demand
+#
+# Needs repo secrets TELEGRAM_BOT_TOKEN (+ TELEGRAM_CHAT_ID). Without them the
+# helper degrades to logging. State (board message id, update offset) is kept in
+# the Actions cache so the board is edited in place rather than spammed.
+name: telegram-bot
+
+on:
+  workflow_run:
+    workflows: [stage1-cheap, stage2-deepauth, stage3-math, tracka-batch1, tracka-batch2, tracka-batch3]
+    types: [completed]
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'board | stale | fallback | poll | all'
+        type: choice
+        options: [all, board, stale, fallback, poll]
+        default: all
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: telegram-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: .tg_state.json
+          key: tg-state-${{ github.run_id }}
+          restore-keys: tg-state-
+
+      - name: Notify on workflow completion
+        if: github.event_name == 'workflow_run'
+        env:
+          RID: ${{ github.event.workflow_run.id }}
+          RNAME: ${{ github.event.workflow_run.name }}
+          RCONC: ${{ github.event.workflow_run.conclusion }}
+          RREPO: ${{ github.event.workflow_run.repository.name }}
+        run: |
+          python3 CA/scripts/telegram.py notify-completed \
+            --repo "$RREPO" --run-id "$RID" --name "$RNAME" --conclusion "$RCONC" || true
+
+      - name: Scheduled checks (poll + stale + fallback + board)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'all')
+        run: |
+          python3 CA/scripts/telegram.py poll     || true
+          python3 CA/scripts/telegram.py stale    || true
+          python3 CA/scripts/telegram.py fallback || true
+          python3 CA/scripts/telegram.py board --send || true
+
+      - name: Dispatch single mode
+        if: github.event_name == 'workflow_dispatch' && inputs.mode != 'all'
+        run: |
+          if [ "${{ inputs.mode }}" = "board" ]; then
+            python3 CA/scripts/telegram.py board --send
+          else
+            python3 CA/scripts/telegram.py "${{ inputs.mode }}"
+          fi
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .tg_state.json
+          key: tg-state-${{ github.run_id }}
