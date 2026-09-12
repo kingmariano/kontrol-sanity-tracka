@@ -59,11 +59,15 @@ def api(method, payload):
         return json.loads(r.read().decode())
 
 
+def resolved_chat():
+    return CHAT or load_state().get("chat_id")
+
+
 def tg_send(text, buttons=None, chat=None, reply_to=None):
     if not TOKEN:
         print("[no-token] would send:\n" + text)
         return None
-    payload = {"chat_id": chat or CHAT, "text": text, "disable_web_page_preview": True}
+    payload = {"chat_id": chat or resolved_chat(), "text": text, "disable_web_page_preview": True}
     if reply_to:
         payload["reply_to_message_id"] = reply_to
     if buttons:
@@ -146,16 +150,20 @@ def build_board():
     return "\n".join(lines)
 
 
-CMD_HELP = ("Commands: /board /active /queued /repos /help")
+CMD_HELP = ("Commands: /board /active /queued /repos /id /help")
 
 
 def handle_update(state, upd):
     msg = upd.get("message") or {}
     text = (msg.get("text") or "").strip().lower()
     chat = msg.get("chat", {}).get("id")
+    if chat:
+        state["chat_id"] = chat
     if not text.startswith("/"):
         return
-    if text in ("/start", "/help"):
+    if text == "/id":
+        tg_send(f"chat_id = {chat}", chat=chat)
+    elif text in ("/start", "/help"):
         tg_send(CMD_HELP, chat=chat)
     elif text in ("/board", "/status"):
         tg_send(build_board(), buttons=board_buttons(), chat=chat)
