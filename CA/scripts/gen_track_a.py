@@ -91,6 +91,37 @@ BATCH2 = [
     ("a9_unauth_pull", "MUST_PASS", "SafePull", "test_a9_safe"),
 ]
 
+# ---------------------------------------------------------------- batch 3 (A5)
+# msg.value-carrying probe. Scoped property: attacker net ETH <= 0 and the
+# target must not lose ETH (no blanket storage assert).
+VALUE = '''
+    // {label}
+    function {name}(bytes4 selector, uint256 a0, uint256 a1, address attacker) public {{
+        vm.assume(attacker != address(0));
+        vm.assume(uint256(uint160(attacker)) > 0xff);
+        vm.assume(attacker != address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D));
+        vm.assume(attacker != address(0x000000000000000000636F6e736F6c652e6c6f67));
+        address target = address(uint160(0x{base:x} + {idx}));
+        vm.assume(attacker != target);
+        vm.etch(target, hex"{code}");
+        vm.deal(target, 2 ether);
+        vm.assume(a0 > 0);
+        vm.assume(a0 <= 1 ether);
+        vm.deal(attacker, a0);
+        uint256 atk0 = attacker.balance;
+        uint256 bal0 = target.balance;
+        vm.prank(attacker);
+        target.call{{value: a0}}(abi.encodeWithSelector(selector, a0, a1));
+        assertLe(attacker.balance, atk0, "P_ATTACKER_PROFIT");
+        assertGe(target.balance, bal0, "P_BALANCE_LOST");
+    }}
+'''
+
+BATCH3 = [
+    ("a5_multicall", "MUST_FAIL", "VulnerableValue", "test_a5_vulnerable"),
+    ("a5_multicall", "MUST_PASS", "SafeValue", "test_a5_safe"),
+]
+
 
 def write_stage(stage, chunk_src, tests, cls):
     outdir = os.path.join(OUTROOT, "stage" + stage)
@@ -137,8 +168,18 @@ def main():
             tests.append(tname)
         src = UNAUTH_PULL_HDR.format(stage=stage, chunk=0) + "".join(parts) + "}\n"
         write_stage(stage, src, tests, "CONTROLS-BATCH2")
+    elif args.batch == 3:
+        stage = args.stage or "tracka_batch3"
+        parts, tests = [], []
+        for stage_id, kind, cname, tname in BATCH3:
+            parts.append(VALUE.format(
+                label=f"{kind} {stage_id} {cname}", name=tname,
+                base=0x3000000, idx=0, code=control_code(cname)))
+            tests.append(tname)
+        src = gen_stage.HDR.format(stage=stage, chunk=0, cls="CONTROLS-BATCH3") + "".join(parts) + "}\n"
+        write_stage(stage, src, tests, "CONTROLS-BATCH3")
     else:
-        raise SystemExit("--batch must be 1 or 2")
+        raise SystemExit("--batch must be 1, 2 or 3")
 
 
 if __name__ == "__main__":

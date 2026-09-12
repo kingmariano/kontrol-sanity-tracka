@@ -30,3 +30,33 @@ contract SafePull {
         IConsentToken(CONSENT_TOKEN).transferFrom(solver, msg.sender, amt);
     }
 }
+
+// ---- A5: multicall / msg.value reuse --------------------------------------
+// A payable single call that over-credits msg.value models the reuse that a
+// batch/multicall performs internally. Scoped property: attacker net ETH <= 0
+// and the target must not lose ETH (blanket storage is not asserted here,
+// because a payable function legitimately writes accounting).
+contract VulnerableValue {
+    uint256 public credit; // slot 0
+
+    function depositAndClaim() external payable {
+        credit += msg.value; // counted twice -> msg.value reuse
+        credit += msg.value;
+        uint256 c = credit;
+        credit = 0;
+        (bool ok, ) = msg.sender.call{value: c}("");
+        require(ok, "send");
+    }
+}
+
+contract SafeValue {
+    uint256 public credit; // slot 0
+
+    function depositAndClaim() external payable {
+        credit += msg.value; // counted once
+        uint256 c = credit;
+        credit = 0;
+        (bool ok, ) = msg.sender.call{value: c}("");
+        require(ok, "send");
+    }
+}

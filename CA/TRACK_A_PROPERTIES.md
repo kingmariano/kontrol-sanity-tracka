@@ -126,6 +126,12 @@ Shared conventions:
 
 ## A8 — hostile callback accounting
 
+> **Reclassified to Track B (2026-09-12).** A symbolic attacker is an EOA and
+> cannot execute a reentry; a real callback needs a *concrete, etched* contract
+> that the target actually calls during its operation (token hook, flash-loan
+> callback). That is a per-target modeled counterparty, not an ABI-agnostic
+> sweep, so it belongs in the curated Track B set.
+
 - **Invariant:** during a callback, re-entering the target with an arbitrary
   selector cannot exceed the caller's entitlement.
 - **Template:** `REENTRANT` (new) — a mock callback contract re-enters the
@@ -177,9 +183,13 @@ Shared conventions:
 |---|---|---|---|
 | **1** | A1, A2, A6, A7 | none (reuse `SINGLE` + controls) | sanity run queued |
 | **2** | A9 | `UNAUTH_PULL` + `ConsentToken` | sanity run queued |
-| **3** | A5, A8 | `VALUE`, `REENTRANT` + `ReentrantMock` | after templates |
+| **3** | A5 | `VALUE` | sanity run queued |
 | **—** | A3 | signer template | Track B (not sweepable) |
 | **—** | A4 | multi-party inflation, symbolic-amount mul | Track B (round-trip-only is vacuous) |
+| **—** | A8 | needs a concrete etched callback counterparty | Track B |
+
+**Track A sweepable set is therefore A1, A2, A5, A6, A7, A9** (six stages);
+A3/A4/A8 join the curated Track B queue.
 
 Scanner yield (unique bytecodes / deployments matching, metadata-stripped):
 A1 39,130 / 475,534 · A2 18,031 / 1,605,663 · A3 18,990 / 435,167 ·

@@ -1,0 +1,31 @@
+# Track A — light batch 3 (A5 multicall / msg.value reuse).
+# Scoped property: attacker net ETH <= 0 and the target must not lose ETH.
+name: tracka-batch3
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'sanity (controls only) | full'
+        required: false
+        default: 'sanity'
+        type: choice
+        options: [sanity, full]
+      chunks:
+        description: 'chunk indices (comma-separated); empty = all'
+        required: false
+        default: ''
+        type: string
+      resume_run_id:
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  run:
+    uses: ./.github/workflows/stage-matrix.yml
+    with:
+      stage: 'tracka_batch3'
+      mode: ${{ inputs.mode }}
+      chunks: ${{ inputs.chunks }}
+      resume_run_id: ${{ inputs.resume_run_id }}

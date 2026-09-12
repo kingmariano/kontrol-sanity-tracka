@@ -1,0 +1,14 @@
+{
+ "stage": "tracka_batch3",
+ "chunks": [
+  {
+   "chunk": 0,
+   "class": "CONTROLS-BATCH3",
+   "tests": [
+    "test_a5_vulnerable",
+    "test_a5_safe"
+   ],
+   "targets": []
+  }
+ ]
+}
