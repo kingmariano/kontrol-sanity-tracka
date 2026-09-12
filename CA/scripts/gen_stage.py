@@ -125,6 +125,9 @@ PROXY = """    // {label}
         vm.etch(canary, hex"{killer}");
         address target = address(uint160(0x{base:x} + {idx}));
         vm.assume(attacker != target);
+        // slot 0 is seeded with `canary`; without this assume the solver picks
+        // attacker == canary and P_AUTH_WRITE fires synthetically on every proxy.
+        vm.assume(attacker != canary);
         vm.etch(target, hex"{code}");
         vm.deal(target, 1 ether);
         _etchTokens();
