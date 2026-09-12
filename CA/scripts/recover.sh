@@ -7,7 +7,7 @@ CA=/workspaces/codespaces-blank/CA
 TC=/tmp/eth-contracts
 HR=/tmp/harness/probe
 IMG=runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
-STOP=${1:-prove}
+STOP=${1:-scan}
 
 # ---- stage: env ----
 bash $CA/scripts/env_setup.sh
@@ -73,21 +73,8 @@ for name in ['VulnerableControl', 'SafeControl']:
     open(f'/tmp/harness/{name}.hex', 'w').write(bc)
     print(name, len(bc) // 2, 'bytes runtime code')
 PYEOF
-python3 $CA/scripts/gen_probe.py          # regenerates test/ProbeBatch1.sol
-mkdir -p $CA/harness/generated
-cp $HR/test/ProbeBatch1.sol $CA/harness/generated/
 [ "$STOP" = "harness" ] && exit 0
 
-# ---- stage: build (kontrol build ~4.5 min; digest skips if unchanged) ----
-docker run --rm -v /tmp/harness:/work -w /work/probe $IMG kontrol build --rekompile \
-  > $CA/harness/kontrol_build.log 2>&1
-tail -1 $CA/harness/kontrol_build.log
-[ "$STOP" = "build" ] && exit 0
-
-# ---- stage: prove ----
-docker run --rm -v /tmp/harness:/work -w /work/probe $IMG kontrol prove \
-  --match-test 'ProbeBatch1.test_probe_.*' \
-  --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 --workers 2 \
-  > $CA/harness/kontrol_prove.log 2>&1
-grep -E 'PROOF (PASSED|FAILED)|Time:' $CA/harness/kontrol_prove.log || tail -5 $CA/harness/kontrol_prove.log
-echo "RECOVER_DONE"
+# NOTE: proofs run only in CI (public repos), never locally. recover.sh rebuilds
+# the DB + features + harness sources and stops here.
+echo "RECOVER_DONE (db + features + harness ready)"
