@@ -57,6 +57,12 @@ Shared conventions:
 
 ## A4 — rounding / round-trip value conservation (near-empty vault)
 
+> **Reclassified to Track B (2026-09-12).** The sweep found only 2,460 bytecodes /
+> 2,655 deployments, and the *inflation* effect is inherently multi-party
+> (front-run + donation + victim deposit) with symbolic-amount multiplication —
+> heavy for the mass matrix, and a single-user round-trip test is vacuous (the
+> attacker only harms themselves). Implement as a Track B per-target invariant.
+
 - **Invariant:** for a symbolic deposit amount, `deposit` then immediately
   `redeem` cannot increase the caller's underlying-token balance; and a nonzero
   deposit cannot mint zero shares when `totalSupply > 0`.
@@ -167,9 +173,15 @@ Shared conventions:
 
 ## Light-batch batching
 
-| Batch | Stages | Template work | Ready now |
+| Batch | Stages | Template work | Status |
 |---|---|---|---|
-| **1** | A1, A2, A6, A7 | none (reuse `SINGLE` + controls) | yes |
-| **2** | A4, A9 | `ROUNDTRIP`, `UNAUTH_PULL` + `ConsentToken` | after mocks compile |
+| **1** | A1, A2, A6, A7 | none (reuse `SINGLE` + controls) | sanity run queued |
+| **2** | A9 | `UNAUTH_PULL` + `ConsentToken` | sanity run queued |
 | **3** | A5, A8 | `VALUE`, `REENTRANT` + `ReentrantMock` | after templates |
-| **—** | A3 | signer template (Track B) | not sweepable |
+| **—** | A3 | signer template | Track B (not sweepable) |
+| **—** | A4 | multi-party inflation, symbolic-amount mul | Track B (round-trip-only is vacuous) |
+
+Scanner yield (unique bytecodes / deployments matching, metadata-stripped):
+A1 39,130 / 475,534 · A2 18,031 / 1,605,663 · A3 18,990 / 435,167 ·
+A4 2,460 / 2,655 · A5 4,260 / 5,482 · A6 73,429 / 95,500 ·
+A7 96,800 / 8,629,770 · A8 25,435 / 47,336 · A9 9,828 / 14,621.
