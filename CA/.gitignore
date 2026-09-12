@@ -4,3 +4,4 @@ cache/
 out/
 __pycache__/
 *.log
+data/stages/*.parquet
