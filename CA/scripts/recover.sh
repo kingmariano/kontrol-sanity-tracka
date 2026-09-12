@@ -58,7 +58,7 @@ if [ ! -d $HR ]; then
     bash -c 'forge init probe --no-git && cd probe && kontrol init --skip-forge'
   docker run --rm -u 0 -v /tmp/harness:/work --entrypoint bash $IMG -c 'chmod -R a+rwX /work'
 fi
-cp $CA/harness/src/*.sol $HR/src/
+cp $CA/harness/skeleton/src/*.sol $HR/src/
 # compile controls + extract runtime bytecode for the generator (needs solc: run in docker)
 docker run --rm -v /tmp/harness:/work -w /work/probe $IMG bash -c 'forge build' \
   > $CA/harness/forge_build.log 2>&1 || { tail -5 $CA/harness/forge_build.log; exit 1; }

@@ -33,7 +33,8 @@ lines = []
 lines.append("# Opcode Radar — static scan of unique Ethereum bytecodes\n")
 lines.append(f"- Unique bytecodes scanned: **{total:,}**")
 lines.append("- Source: Zellic/all-ethereum-contracts snapshot, block 21,850,000 (Feb 15, 2025)")
-lines.append("- Method: push-aware linear-sweep disassembly (PUSH operand data excluded)\n")
+lines.append("- Method: push-aware linear-sweep disassembly, **solc/vyper metadata"
+             " trailer stripped** before scanning (PUSH operand data excluded)\n")
 lines.append("## Signal prevalence (unique bytecodes)\n")
 lines.append("| Signal | Bytecodes | % | Mainnet deployments |")
 lines.append("|---|---:|---:|---:|")
