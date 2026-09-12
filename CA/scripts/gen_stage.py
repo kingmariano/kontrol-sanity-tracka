@@ -145,6 +145,22 @@ PROXY = """    // {label}
 """
 
 
+def has_tstore(hexcode):
+    """True iff the runtime bytecode contains a real TSTORE (0x5d) opcode,
+    skipping PUSH immediates. Used to drop P4 targets that cannot be two-phase."""
+    b = bytes.fromhex(hexcode)
+    i = 0
+    while i < len(b):
+        op = b[i]
+        if op == 0x5D:
+            return True
+        if 0x60 <= op <= 0x7F:
+            i += 1 + (op - 0x5F)
+        else:
+            i += 1
+    return False
+
+
 def fetch_code(con, h):
     row = con.execute("SELECT bytecode FROM bytecodes WHERE bytecode_hash = ?", [h]).fetchone()
     code = row[0]
@@ -215,16 +231,53 @@ def main():
     ap.add_argument("--addr-cap", type=int, default=500,
                     help="max deployment addresses embedded per target")
     ap.add_argument("--controls-only", action="store_true", help="emit chunk 0 only; no DB")
+    ap.add_argument("--from-manifest", action="store_true",
+                    help="regenerate harness code from the existing manifest (no opcode DB needed)")
+    ap.add_argument("--drop-p4-no-tstore", action="store_true",
+                    help="from-manifest: drop P4 targets whose bytecode has no real TSTORE")
     args = ap.parse_args()
 
     outdir = args.out or os.path.join(ROOT, "harness", "stages", f"stage{args.stage}")
     os.makedirs(outdir, exist_ok=True)
+
+    old_manifest = None
+    if args.from_manifest:
+        mpath = os.path.join(outdir, "manifest.json")
+        if not os.path.exists(mpath):
+            raise SystemExit(f"--from-manifest: {mpath} not found")
+        old_manifest = json.load(open(mpath))
+
     for f in os.listdir(outdir):
         if f.startswith(f"Stage{args.stage}Chunk_") or f.startswith("chunk_") or f == "manifest.json":
             os.remove(os.path.join(outdir, f))
 
     targets = []
-    if not args.controls_only:
+    if args.from_manifest:
+        targets = [t for c in old_manifest["chunks"] for t in c["targets"]]
+        con = duckdb.connect(":memory:")
+        con.execute("SET threads=4")
+        _sel = "/tmp/eth-contracts/bytecodes_sel.parquet"
+        if os.path.exists(_sel):
+            con.execute(
+                "CREATE VIEW bytecodes AS "
+                f"SELECT bytecode_hash, bytecode FROM read_parquet('{_sel}')"
+            )
+        else:
+            con.execute(
+                "CREATE VIEW bytecodes AS "
+                "SELECT bytecode_hash, bytecode FROM "
+                "read_csv_auto('/tmp/eth-contracts/bytecodes.csv', sample_size=1000)"
+            )
+        if args.drop_p4_no_tstore:
+            kept = []
+            for t in targets:
+                if t["class"] == "P4_TWO_PHASE":
+                    if not has_tstore(fetch_code(con, t["hash"])):
+                        print(f"drop P4 (no TSTORE): {t['hash']}", flush=True)
+                        continue
+                kept.append(t)
+            targets = kept
+    elif not args.controls_only:
         con = duckdb.connect(DB, read_only=True)
         con.execute("SET memory_limit='4GB'")
         con.execute("SET threads=4")

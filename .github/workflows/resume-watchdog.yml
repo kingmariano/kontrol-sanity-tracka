@@ -74,7 +74,13 @@ jobs:
               return json.loads(gh("api", path))
 
           def runs(name, n=20):
-              return api(f"repos/{REPO}/actions/workflows/{name}/runs?per_page={n}")["workflow_runs"]
+              # the workflows API needs the file name (<name>.yml) or numeric id,
+              # NOT the workflow display name — passing the display name 404s.
+              try:
+                  return api(f"repos/{REPO}/actions/workflows/{name}.yml/runs?per_page={n}")["workflow_runs"]
+              except subprocess.CalledProcessError as e:
+                  print(f"[warn] runs({name}) failed: {e}")
+                  return []
 
           def dt(s):
               return datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
@@ -165,7 +171,7 @@ jobs:
                     f"(resume_run_id={run['id']}, mode={mode})")
               summary.append(f"🔄 resumed {name} #{run['id']} ({len(incomplete)} chunks, mode={mode})")
               if not DRY:
-                  gh("workflow", "run", name, "-R", REPO,
+                  gh("workflow", "run", f"{name}.yml", "-R", REPO,
                      "-f", f"mode={mode}", "-f", f"chunks={chunks}",
                      "-f", f"resume_run_id={run['id']}")
               acted += 1

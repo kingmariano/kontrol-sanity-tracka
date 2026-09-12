@@ -250,7 +250,7 @@ def fallback():
                 continue
             tg_send(f"🛟 Fallback resume: {wf} #{r0['databaseId']} missing {len(missing)} chunks "
                     f"→ re-dispatching", buttons=board_buttons())
-            gh("workflow", "run", wf, "-R", f"{OWNER}/{repo}",
+            gh("workflow", "run", f"{wf}.yml", "-R", f"{OWNER}/{repo}",
                "-f", "mode=full", "-f", f"chunks={','.join(map(str, missing))}",
                "-f", f"resume_run_id={r0['databaseId']}")
             acted += 1

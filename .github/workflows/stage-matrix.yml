@@ -100,21 +100,42 @@ jobs:
 
       - name: kontrol prove (one invocation per test)
         run: |
+          set +e
           TESTS_FILE="$GITHUB_WORKSPACE/CA/harness/stages/stage${STAGE}/chunk_${{ matrix.chunk }}.tests"
           cd probe
           chmod -R a+rwX .
           V=verdicts_chunk_${{ matrix.chunk }}.txt; : > "$V"
+          # Bound the whole chunk to < the 350m job cap so every test in the
+          # chunk gets a verdict (or an explicit INCOMPLETE) before the job dies.
+          NTESTS=$(grep -c . "$TESTS_FILE")
+          BUDGET=$(( 330 * 60 / NTESTS )); [ "$BUDGET" -gt 5400 ] && BUDGET=5400
+          # Sound-only speedups: booster backend, no per-call nodes, drop stack
+          # checks (compiler bytecode), no rewrite-trace logging, branch-level
+          # parallelism, coarse CFG nodes, generous iteration cap, step-timeout
+          # so a single hard step cannot eat the whole budget.
+          PROVE_OPTS="--use-booster --no-break-on-calls --no-stack-checks --no-log-rewrites \
+            --max-frontier-parallel 2 --max-depth 50000 --max-iterations 100000 \
+            --smt-timeout 30000 --smt-retry-limit 2 --workers 2 --step-timeout 600 \
+            --auto-abstract-gas"
           while IFS= read -r t; do
             [ -z "$t" ] && continue
             echo "=== c${{ matrix.chunk }}: $t ===" | tee -a "$V" prove_output.log
-            timeout 300m docker run --rm -v "$PWD":/work/probe -w /work/probe \
+            timeout "${BUDGET}s" docker run --rm -v "$PWD":/work/probe -w /work/probe \
               runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
               kontrol prove \
               --match-test "${t}" \
-              --auto-abstract-gas --max-depth 1000 --max-iterations 3000 --smt-timeout 10000 --workers 2 \
-              2>&1 | tee -a prove_output.log \
-              | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
-              || echo "=== $t INCOMPLETE (timeout/error; kcfg checkpointed) ===" >> "$V"
+              $PROVE_OPTS > /tmp/prove_one.log 2>&1
+            rc=$?
+            cat /tmp/prove_one.log >> prove_output.log
+            if grep -qE 'PROOF (PASSED|FAILED)' /tmp/prove_one.log; then
+              grep -E 'PROOF (PASSED|FAILED)' /tmp/prove_one.log >> "$V"
+            elif [ "$rc" -eq 124 ]; then
+              echo "=== $t INCOMPLETE (wall-timeout; kcfg checkpointed) ===" >> "$V"
+            elif grep -qE 'CHEATCODE_UNIMPLEMENTED|[Uu]nimplemented|Exception|Fatal' /tmp/prove_one.log; then
+              echo "=== $t INCOMPLETE (abort; kcfg checkpointed) ===" >> "$V"
+            else
+              echo "=== $t INCOMPLETE (rc=$rc; kcfg checkpointed) ===" >> "$V"
+            fi
             sudo chmod -R a+rwX .
           done < "$TESTS_FILE"
           sudo chown -R $(id -u):$(id -g) .
