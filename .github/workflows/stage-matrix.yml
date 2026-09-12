@@ -111,7 +111,7 @@ jobs:
               runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
               kontrol prove \
               --match-test "${t}" \
-              --auto-abstract-gas --max-depth 1000 --smt-timeout 10000 --workers 2 \
+              --auto-abstract-gas --max-depth 1000 --max-iterations 3000 --smt-timeout 10000 --workers 2 \
               2>&1 | tee -a prove_output.log \
               | grep -E 'PROOF (PASSED|FAILED)' >> "$V" \
               || echo "=== $t INCOMPLETE (timeout/error; kcfg checkpointed) ===" >> "$V"

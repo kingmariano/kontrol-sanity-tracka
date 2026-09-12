@@ -43,6 +43,7 @@ concurrency:
 jobs:
   resume:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Scan completed runs and resume incomplete chunks
