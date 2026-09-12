@@ -1,0 +1,56 @@
+[
+ {
+  "test": "test_control_vulnerable",
+  "class": "CONTROL",
+  "hash": null,
+  "deployments": 0,
+  "funded": 0,
+  "code": 0,
+  "classification": "CONTROL_OR_UNMAPPED"
+ },
+ {
+  "test": "test_p1_c13_0",
+  "class": "P1_AUTH_WRITE",
+  "hash": "0xdd84096d43b2944cc71db541cffc21b9ee6b2dd9e1333df5d9d806a710f2cf74",
+  "deployments": 223,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p1_c16_0",
+  "class": "P1_AUTH_WRITE",
+  "hash": "0x42f2ecb7240414785d5fec84adfed21e981fc5fa8e29938ba1f60b4e3070c023",
+  "deployments": 100,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p1_c1_0",
+  "class": "P1_AUTH_WRITE",
+  "hash": "0xf9e2d36819eab1d19e19372266a32e00cb30b02a96732fa6174ccdb560ba1907",
+  "deployments": 19130,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p1_c1_1",
+  "class": "P1_AUTH_WRITE",
+  "hash": "0x038cfd30a54785c310890eb5dbca5667cb56f069e624efd7011271f8880ca497",
+  "deployments": 10029,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p1_c20_0",
+  "class": "P1_AUTH_WRITE",
+  "hash": "0x5cc4b458e72cb61a8c14ad283da53efb7dc515cac849705488ffb402500867ed",
+  "deployments": 80,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ }
+]
