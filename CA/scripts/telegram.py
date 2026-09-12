@@ -263,6 +263,21 @@ def notify_completed(repo, rid, name, conclusion):
             buttons=board_buttons())
 
 
+def detect_completions(state):
+    """Central completion detection: notify for runs that finished since last tick."""
+    new = []
+    seen = state.setdefault("seen", {})
+    for r in latest_runs():
+        key = f"{r['wf']}:{r['id']}"
+        if r["status"] == "completed" and key not in seen:
+            seen[key] = r["conclusion"]
+            new.append(r)
+    # prune to keep state small
+    if len(seen) > 300:
+        state["seen"] = dict(list(seen.items())[-150:])
+    return new
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", choices=["board", "poll", "stale", "fallback", "notify-completed", "send"])
@@ -275,9 +290,11 @@ def main():
     ap.add_argument("--send", action="store_true", help="board: also send (not just print)")
     a = ap.parse_args()
     if a.mode == "board":
+        state = load_state()
+        for r in detect_completions(state):
+            notify_completed(r["repo"], r["id"], r["name"], r["conclusion"])
         text = build_board()
         if a.send and TOKEN:
-            state = load_state()
             if state.get("board_id"):
                 try:
                     tg_edit(state["board_id"], text, board_buttons())
@@ -285,9 +302,9 @@ def main():
                     state["board_id"] = tg_send(text, board_buttons())["result"]["message_id"]
             else:
                 state["board_id"] = tg_send(text, board_buttons())["result"]["message_id"]
-            save_state(state)
         else:
             print(text)
+        save_state(state)
     elif a.mode == "poll":
         poll()
     elif a.mode == "stale":

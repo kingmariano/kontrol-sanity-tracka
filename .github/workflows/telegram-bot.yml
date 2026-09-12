@@ -1,25 +1,24 @@
-# telegram-bot — always-on campaign watcher.
+# telegram-bot — central always-on campaign watcher (control tower only).
 #
-#  * workflow_run completed -> immediate "which workflow finished" notice
-#  * schedule (10 min)      -> command poll, staleness alerts, fallback resume,
-#                              and a refreshed live status board (URL buttons)
-#  * workflow_dispatch      -> run any mode on demand
+# Runs ONLY in kingmariano/zany-xylophone to avoid duplicate boards, and uses
+# CAMPAIGN_GH_TOKEN (a PAT with repo scope) to see/dispatch all campaign repos.
+# Without the PAT it falls back to the repo-scoped GITHUB_TOKEN (board limited to
+# this repo). Without TELEGRAM_BOT_TOKEN it degrades to logging.
 #
-# Needs repo secrets TELEGRAM_BOT_TOKEN (+ TELEGRAM_CHAT_ID). Without them the
-# helper degrades to logging. State (board message id, update offset) is kept in
-# the Actions cache so the board is edited in place rather than spammed.
+# Each tick: completion notices (state-tracked) -> staleness alerts ->
+# fallback resume -> refreshed live status board (URL buttons, edited in place).
+#
+# Secrets: TELEGRAM_BOT_TOKEN, (optional TELEGRAM_CHAT_ID; else /id auto-learns),
+#          CAMPAIGN_GH_TOKEN (PAT: repo + workflow scope).
 name: telegram-bot
 
 on:
-  workflow_run:
-    workflows: [stage1-cheap, stage2-deepauth, stage3-math, tracka-batch1, tracka-batch2, tracka-batch3]
-    types: [completed]
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'board | stale | fallback | poll | all'
+        description: 'all | board | stale | fallback | poll'
         type: choice
         options: [all, board, stale, fallback, poll]
         default: all
@@ -34,8 +33,10 @@ concurrency:
 
 jobs:
   run:
+    if: github.repository == 'kingmariano/zany-xylophone'
     runs-on: ubuntu-latest
     env:
+      GH_TOKEN: ${{ secrets.CAMPAIGN_GH_TOKEN || github.token }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
@@ -47,24 +48,13 @@ jobs:
           key: tg-state-${{ github.run_id }}
           restore-keys: tg-state-
 
-      - name: Notify on workflow completion
-        if: github.event_name == 'workflow_run'
-        env:
-          RID: ${{ github.event.workflow_run.id }}
-          RNAME: ${{ github.event.workflow_run.name }}
-          RCONC: ${{ github.event.workflow_run.conclusion }}
-          RREPO: ${{ github.event.workflow_run.repository.name }}
-        run: |
-          python3 CA/scripts/telegram.py notify-completed \
-            --repo "$RREPO" --run-id "$RID" --name "$RNAME" --conclusion "$RCONC" || true
-
-      - name: Scheduled checks (poll + stale + fallback + board)
+      - name: Tick (completions + stale + fallback + board)
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'all')
         run: |
           python3 CA/scripts/telegram.py poll     || true
+          python3 CA/scripts/telegram.py board --send || true
           python3 CA/scripts/telegram.py stale    || true
           python3 CA/scripts/telegram.py fallback || true
-          python3 CA/scripts/telegram.py board --send || true
 
       - name: Dispatch single mode
         if: github.event_name == 'workflow_dispatch' && inputs.mode != 'all'
