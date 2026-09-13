@@ -107,8 +107,11 @@ jobs:
           V=verdicts_chunk_${{ matrix.chunk }}.txt; : > "$V"
           # Bound the whole chunk to < the 350m job cap so every test in the
           # chunk gets a verdict (or an explicit INCOMPLETE) before the job dies.
+          # NOTE: `timeout -k` is required — plain SIGTERM does NOT stop the
+          # Kontrol container, so without --kill-after the job runs to GitHub's
+          # 350m cap and gets cancelled with no artifacts uploaded.
           NTESTS=$(grep -c . "$TESTS_FILE")
-          BUDGET=$(( 330 * 60 / NTESTS )); [ "$BUDGET" -gt 5400 ] && BUDGET=5400
+          BUDGET=$(( 280 * 60 / NTESTS )); [ "$BUDGET" -gt 4500 ] && BUDGET=4500
           # Sound-only speedups: booster backend, no per-call nodes, drop stack
           # checks (compiler bytecode), no rewrite-trace logging, branch-level
           # parallelism, coarse CFG nodes, generous iteration cap, step-timeout
@@ -120,7 +123,7 @@ jobs:
           while IFS= read -r t; do
             [ -z "$t" ] && continue
             echo "=== c${{ matrix.chunk }}: $t ===" | tee -a "$V" prove_output.log
-            timeout "${BUDGET}s" docker run --rm -v "$PWD":/work/probe -w /work/probe \
+            timeout -k 30s "${BUDGET}s" docker run --rm -v "$PWD":/work/probe -w /work/probe \
               runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255 \
               kontrol prove \
               --match-test "${t}" \

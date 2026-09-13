@@ -119,6 +119,23 @@ jobs:
                       out.append(rs[0])
               return out
 
+          ACTIVE = ("in_progress", "queued", "waiting", "pending", "requested")
+
+          def run_jobs(run_id):
+              try:
+                  return api(f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+              except subprocess.CalledProcessError:
+                  return []
+
+          def busy_chunks(active_runs):
+              busy = set()
+              for r in active_runs:
+                  for j in run_jobs(r["id"]):
+                      m = re.search(r"prove \((\d+)\)", j.get("name", ""))
+                      if m and j.get("status") in ("in_progress", "queued"):
+                          busy.add(int(m.group(1)))
+              return busy
+
           acted = 0
           summary = []
           for run in target_runs():
@@ -127,53 +144,81 @@ jobs:
               if not stage:
                   continue
               rec = runs(name, 20)
-              if any(r["status"] in ("in_progress", "queued", "waiting", "pending") for r in rec):
-                  print(f"[skip] {name}: another run is active/queued")
-                  continue
+              active = [r for r in rec if r["status"] in ACTIVE and r["id"] != run["id"]]
               # runaway cap: caller runs started in the last 6h
               recent = sum(1 for r in rec if (now() - dt(r["created_at"])).total_seconds() < 6 * 3600)
               if recent > 8:
                   print(f"[skip] {name}: runaway cap ({recent} runs/6h)")
                   continue
               man = json.load(open(f"CA/harness/stages/stage{stage}/manifest.json"))
-              arts = api(f"repos/{REPO}/actions/runs/{run['id']}/artifacts?per_page=100")["artifacts"]
-              # infer mode so a completed sanity run (only chunk 0) is not mistaken
-              # for an incomplete full run, and vice-versa.
-              if name.startswith("tracka"):
-                  mode, cand = "sanity", [ch for ch in man["chunks"] if ch["chunk"] == 0]
+
+              if active:
+                  # A newer run is in flight. Do NOT block on it: resume only the
+                  # chunks that are neither busy (an in_progress/queued job exists)
+                  # nor already produced by it. This lets recovery proceed while a
+                  # single straggler job keeps the run "in_progress".
+                  a = active[0]
+                  busy = busy_chunks(active)
+                  achunks = set()
+                  for r in active:
+                      for j in run_jobs(r["id"]):
+                          m = re.search(r"prove \((\d+)\)", j.get("name", ""))
+                          if m:
+                              achunks.add(int(m.group(1)))
+                  if not achunks:
+                      print(f"[skip] {name}: active run {a['id']} has no chunk jobs yet")
+                      continue
+                  mode = "sanity" if (len(achunks) == 1 and 0 in achunks) else "full"
+                  cand = ([ch for ch in man["chunks"] if ch["chunk"] == 0] if mode == "sanity"
+                          else man["chunks"])
+                  anames = {x["name"] for x in
+                            api(f"repos/{REPO}/actions/runs/{a['id']}/artifacts?per_page=100")["artifacts"]}
+                  incomplete = [ch["chunk"] for ch in cand
+                                if ch["chunk"] not in busy
+                                and not (f"stage{stage}-results-chunk-{ch['chunk']}" in anames
+                                         and verdicts_complete(a["id"], stage, ch["chunk"], ch["tests"]))]
+                  resume_from = a["id"]
+                  if not incomplete:
+                      print(f"[skip] {name}: active run {a['id']} still covers remaining chunks "
+                            f"(busy={sorted(busy)})")
+                      continue
               else:
-                  got = sorted(int(m.group(1)) for a in arts
-                               for m in [re.search(rf"stage{stage}-results-chunk-(\d+)$", a["name"])] if m)
-                  if len(man["chunks"]) > 1 and got == [0]:
+                  arts = api(f"repos/{REPO}/actions/runs/{run['id']}/artifacts?per_page=100")["artifacts"]
+                  if name.startswith("tracka"):
                       mode, cand = "sanity", [ch for ch in man["chunks"] if ch["chunk"] == 0]
                   else:
-                      mode, cand = "full", man["chunks"]
-              incomplete = [ch["chunk"] for ch in cand
-                            if not verdicts_complete(run["id"], stage, ch["chunk"], ch["tests"])]
-              if not incomplete:
-                  print(f"[ok] {name} {run['id']}: all candidate chunks complete (mode={mode})")
-                  continue
-              # progress guard vs previous run with the same head_sha
-              prev = next((r for r in rec if r["id"] != run["id"]
-                           and r.get("head_sha") == run.get("head_sha")
-                           and (now() - dt(r["created_at"])).total_seconds() < 24 * 3600), None)
-              if prev:
-                  pin = [ch["chunk"] for ch in cand
-                         if not verdicts_complete(prev["id"], stage, ch["chunk"], ch["tests"])]
-                  # only treat as no-progress when there *was* prior incompleteness
-                  if pin and len(incomplete) >= len(pin):
-                      print(f"[stop] {name}: no progress vs run {prev['id']} "
-                            f"({len(incomplete)} >= {len(pin)} incomplete); not resuming")
-                      summary.append(f"⛔ {name}: no progress vs #{prev['id']}; stopped")
+                      got = sorted(int(m.group(1)) for a in arts
+                                   for m in [re.search(rf"stage{stage}-results-chunk-(\d+)$", a["name"])] if m)
+                      if len(man["chunks"]) > 1 and got == [0]:
+                          mode, cand = "sanity", [ch for ch in man["chunks"] if ch["chunk"] == 0]
+                      else:
+                          mode, cand = "full", man["chunks"]
+                  incomplete = [ch["chunk"] for ch in cand
+                                if not verdicts_complete(run["id"], stage, ch["chunk"], ch["tests"])]
+                  if not incomplete:
+                      print(f"[ok] {name} {run['id']}: all candidate chunks complete (mode={mode})")
                       continue
+                  resume_from = run["id"]
+                  # progress guard vs previous run with the same head_sha
+                  prev = next((r for r in rec if r["id"] != run["id"]
+                               and r.get("head_sha") == run.get("head_sha")
+                               and (now() - dt(r["created_at"])).total_seconds() < 24 * 3600), None)
+                  if prev:
+                      pin = [ch["chunk"] for ch in cand
+                             if not verdicts_complete(prev["id"], stage, ch["chunk"], ch["tests"])]
+                      # only treat as no-progress when there *was* prior incompleteness
+                      if pin and len(incomplete) >= len(pin):
+                          print(f"[stop] {name}: no progress vs run {prev['id']} "
+                                f"({len(incomplete)} >= {len(pin)} incomplete); not resuming")
+                          summary.append(f"⛔ {name}: no progress vs #{prev['id']}; stopped")
+                          continue
               chunks = ",".join(str(c) for c in sorted(incomplete))
-              print(f"[resume] {name} {run['id']}: chunks={chunks} "
-                    f"(resume_run_id={run['id']}, mode={mode})")
-              summary.append(f"🔄 resumed {name} #{run['id']} ({len(incomplete)} chunks, mode={mode})")
+              print(f"[resume] {name} {resume_from}: chunks={chunks} (mode={mode})")
+              summary.append(f"🔄 resumed {name} #{resume_from} ({len(incomplete)} chunks, mode={mode})")
               if not DRY:
                   gh("workflow", "run", f"{name}.yml", "-R", REPO,
                      "-f", f"mode={mode}", "-f", f"chunks={chunks}",
-                     "-f", f"resume_run_id={run['id']}")
+                     "-f", f"resume_run_id={resume_from}")
               acted += 1
           print(f"done; resumes dispatched={acted}")
           if summary:
