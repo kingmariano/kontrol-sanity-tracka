@@ -118,7 +118,9 @@ jobs:
           # Kontrol container, so without --kill-after the job runs to GitHub's
           # 350m cap and gets cancelled with no artifacts uploaded.
           NTESTS=$(grep -c . "$TESTS_FILE")
-          BUDGET=$(( 280 * 60 / NTESTS )); [ "$BUDGET" -gt 4500 ] && BUDGET=4500
+          # Total chunk budget 300m (< 350m job cap). 1-test chunks get up to
+          # 280m so large bytecodes can actually finish instead of rc=137.
+          BUDGET=$(( 300 * 60 / NTESTS )); [ "$BUDGET" -gt 16800 ] && BUDGET=16800
           # Sound-only speedups: booster backend, no per-call nodes, drop stack
           # checks (compiler bytecode), no rewrite-trace logging, branch-level
           # parallelism, coarse CFG nodes, generous iteration cap, step-timeout

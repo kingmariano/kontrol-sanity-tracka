@@ -123,14 +123,14 @@
        "token": "0x4d5f47fa6a74757f35c14fd3a6ef8e3c9bc514e8",
        "symbol": "aEthWETH",
        "decimals": 18,
-       "raw": "6771830749651767168",
+       "raw": "6771915210973834672",
        "name": "Aave Ethereum WETH"
       },
       {
        "token": "0x6df1c1e379bc5a00a7b4c6e67a203333772f45a8",
        "symbol": "variableDebtEthUSDT",
        "decimals": 6,
-       "raw": "4097153095",
+       "raw": "4097296421",
        "name": "Aave Ethereum Variable Debt USDT"
       }
      ]

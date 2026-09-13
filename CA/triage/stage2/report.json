@@ -1,5 +1,14 @@
 [
  {
+  "test": "test_control_naive_proxy",
+  "class": "CONTROL",
+  "hash": null,
+  "deployments": 0,
+  "funded": 0,
+  "code": 0,
+  "classification": "CONTROL_OR_UNMAPPED"
+ },
+ {
   "test": "test_p4_c10_1",
   "class": "P4_TWO_PHASE",
   "hash": "0x2bbdccaa35b0042c313f001f5c4a0ae141ba06dd8e4c10c7c261cba423e40369",
