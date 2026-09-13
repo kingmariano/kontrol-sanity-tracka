@@ -82,11 +82,18 @@ jobs:
       - name: Resume KCFG checkpoint (optional)
         if: ${{ inputs.resume_run_id != '' }}
         run: |
-          mkdir -p probe/out/kcfg
+          # Kontrol stores proof state (incl. KCFG) under <root>/out/proofs/<test>.
+          # Without restoring it, `kontrol prove` (no --reinit) restarts from root.
+          mkdir -p probe/out/proofs
           gh run download ${{ inputs.resume_run_id }} \
             -n stage${STAGE}-kcfg-chunk-${{ matrix.chunk }} -D /tmp/kcfg_resume \
             || echo "no checkpoint on that run"
-          [ -d /tmp/kcfg_resume/kcfg ] && cp -r /tmp/kcfg_resume/kcfg/. probe/out/kcfg/ || true
+          if [ -d /tmp/kcfg_resume/proofs ]; then
+            cp -r /tmp/kcfg_resume/proofs/. probe/out/proofs/
+            echo "restored proofs checkpoint: $(find probe/out/proofs -maxdepth 2 | wc -l) entries"
+          else
+            echo "no proofs checkpoint present -> proof restarts from root"
+          fi
           chmod -R a+rwX probe
 
       - name: kontrol build (docker)
@@ -162,5 +169,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: stage${{ inputs.stage }}-kcfg-chunk-${{ matrix.chunk }}
-          path: probe/out/kcfg/
+          path: probe/out/proofs/
+          if-no-files-found: warn
           retention-days: 14
