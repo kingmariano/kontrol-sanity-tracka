@@ -88,8 +88,8 @@ jobs:
           gh run download ${{ inputs.resume_run_id }} \
             -n stage${STAGE}-kcfg-chunk-${{ matrix.chunk }} -D /tmp/kcfg_resume \
             || echo "no checkpoint on that run"
-          if [ -d /tmp/kcfg_resume/proofs ]; then
-            cp -r /tmp/kcfg_resume/proofs/. probe/out/proofs/
+          if [ -f /tmp/kcfg_resume/kcfg_checkpoint.tgz ]; then
+            tar -xzf /tmp/kcfg_resume/kcfg_checkpoint.tgz -C probe/out
             echo "restored proofs checkpoint: $(find probe/out/proofs -maxdepth 2 | wc -l) entries"
           else
             echo "no proofs checkpoint present -> proof restarts from root"
@@ -149,6 +149,15 @@ jobs:
             sudo chmod -R a+rwX .
           done < "$TESTS_FILE"
           sudo chown -R $(id -u):$(id -g) .
+          # Kontrol proof dirs are named <test>:<version> (colon) and contain
+          # parentheses — actions/upload-artifact@v4 rejects ':'. Tar the whole
+          # proofs dir to one safe filename so the checkpoint can be uploaded.
+          if [ -d out/proofs ]; then
+            tar -czf kcfg_checkpoint.tgz -C out proofs && \
+              echo "checkpoint tar: $(du -h kcfg_checkpoint.tgz | cut -f1)"
+          else
+            echo "no out/proofs to checkpoint"
+          fi
 
       - name: Extract verdicts
         if: always()
@@ -169,6 +178,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: stage${{ inputs.stage }}-kcfg-chunk-${{ matrix.chunk }}
-          path: probe/out/proofs/
-          if-no-files-found: warn
+          path: probe/kcfg_checkpoint.tgz
+          if-no-files-found: ignore
           retention-days: 14

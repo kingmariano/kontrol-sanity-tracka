@@ -1,0 +1,114 @@
+[
+ {
+  "test": "test_control_vulnerable_profit",
+  "class": "CONTROL",
+  "hash": null,
+  "deployments": 0,
+  "funded": 0,
+  "code": 0,
+  "classification": "CONTROL_OR_UNMAPPED"
+ },
+ {
+  "test": "test_p7_c16_0",
+  "class": "P7_PROFIT",
+  "hash": "0x0908d3b05c8d1eb49c03b9427601d12d87c64afe51c71bf257dbbbd3186349d9",
+  "deployments": 16410,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p7_c20_0",
+  "class": "P7_PROFIT",
+  "hash": "0xfe9671232a60356835d466fa407f26f21cf93957a962ffa2bcd7fa2f88ad9530",
+  "deployments": 9745,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p7_c20_1",
+  "class": "P7_PROFIT",
+  "hash": "0x02da1a38cfd197a895ca814def266bc9fdddcc947aaeb4b3426c5fa7afb3040c",
+  "deployments": 9348,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p7_c22_0",
+  "class": "P7_PROFIT",
+  "hash": "0x7163ba9b235b928bb6b4aaa3df40597fe4c95c66757f8444517e301d83ba637b",
+  "deployments": 8850,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p7_c23_0",
+  "class": "P7_PROFIT",
+  "hash": "0xad124e84e856eab44aba6c445a8e2e42d0b52e0e06d7eb9bd4cb63b9ca8a7360",
+  "deployments": 8567,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p7_c24_0",
+  "class": "P7_PROFIT",
+  "hash": "0xd2ca7fb94a6c1969318e98c6c9b57d96f2ab57dc13f56a40ea9ebedfefe698d4",
+  "deployments": 7321,
+  "funded": 3,
+  "code": 3,
+  "classification": "LIVE_REACHABLE",
+  "top_instance": "0x4f951bfb033bebe0c6b95e17a64e297aa5af85ce",
+  "slots_0_7": [
+   "0x0000000000000000000000008b99f3660622e21f2910ecca7fbe51d654a1517d",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000"
+  ]
+ },
+ {
+  "test": "test_p7_c3_0",
+  "class": "P7_PROFIT",
+  "hash": "0x27c02a1a822222c2ad6a9a01021c98abf05dbe6d19540035756ef97697ed41d0",
+  "deployments": 222108,
+  "funded": 1,
+  "code": 1,
+  "classification": "LIVE_REACHABLE",
+  "top_instance": "0x702b00b92095a9b4a542a2293a8eb3ec6e42fb06",
+  "slots_0_7": [
+   "0x0000000000000000000000007246b992429e72860ab924df64a1a47bd3dd46e3",
+   "0x000000000000000000000000359e7ff7716730f0e831ede81fbcb1a75ebd58dc",
+   "0x000000000000000000000000271293c67e2d3140a0e9381eff1f9b01e07b0795",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000",
+   "0x0000000000000000000000000000000000000000000000000000000000000000"
+  ]
+ },
+ {
+  "test": "test_p7_c6_1",
+  "class": "P7_PROFIT",
+  "hash": "0xb295f581dc18129473ef66c2cefea4da335452a4704bafda2777e09802f528fa",
+  "deployments": 31285,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ },
+ {
+  "test": "test_p7_c9_0",
+  "class": "P7_PROFIT",
+  "hash": "0x7c764d7b20b3a2cef2528776af549b65e45fb645c8bb26e3aa932bac7b24b02c",
+  "deployments": 22375,
+  "funded": 0,
+  "code": 0,
+  "classification": "DORMANT"
+ }
+]
