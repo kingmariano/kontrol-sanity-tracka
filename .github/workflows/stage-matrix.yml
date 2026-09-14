@@ -154,12 +154,17 @@ jobs:
           # Kontrol proof dirs are named <test>:<version> (colon) and contain
           # parentheses — actions/upload-artifact@v4 rejects ':'. Tar the whole
           # proofs dir to one safe filename so the checkpoint can be uploaded.
+          # `|| true`: when a test is SIGKILLed by `timeout -k`, the container
+          # may still be writing `out/proofs`, so tar can exit 1 with
+          # "file changed as we read it". That must NOT fail the job — every
+          # verdict already produced is uploaded by the `if: always()` steps.
           if [ -d out/proofs ]; then
-            tar -czf kcfg_checkpoint.tgz -C out proofs && \
-              echo "checkpoint tar: $(du -h kcfg_checkpoint.tgz | cut -f1)"
+            tar -czf kcfg_checkpoint.tgz -C out proofs || true
+            echo "checkpoint tar: $(du -h kcfg_checkpoint.tgz 2>/dev/null | cut -f1)"
           else
             echo "no out/proofs to checkpoint"
           fi
+          exit 0
 
       - name: Extract verdicts
         if: always()
