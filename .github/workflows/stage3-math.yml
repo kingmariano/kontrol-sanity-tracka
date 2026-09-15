@@ -23,6 +23,9 @@ on:
 
 jobs:
   run:
+    permissions:
+      actions: read
+      contents: read
     uses: ./.github/workflows/stage-matrix.yml
     with:
       stage: '3'
