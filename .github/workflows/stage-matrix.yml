@@ -11,6 +11,10 @@
 #   * verdicts + prove logs are uploaded for the offline live-gate triage
 name: stage-matrix
 
+permissions:
+  contents: read
+  actions: read
+
 on:
   workflow_call:
     inputs:
@@ -31,6 +35,21 @@ on:
         required: false
         default: 'full'
         type: string
+      src_run_id:
+        description: 'run id of a tracka-generate run holding the `tracka-src` artifact (full mode)'
+        required: false
+        default: ''
+        type: string
+      wave:
+        description: 'wave index when the manifest has more chunks than wave_size'
+        required: false
+        default: ''
+        type: string
+      wave_size:
+        description: 'max chunks per run (GitHub matrix limit is 256)'
+        required: false
+        default: '180'
+        type: string
 
 jobs:
   plan:
@@ -41,18 +60,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python3 - "${{ inputs.stage }}" "${{ inputs.mode }}" "${{ inputs.chunks }}" <<'PY' > "$GITHUB_OUTPUT"
-          import json, sys, glob, os
-          stage, mode, override = sys.argv[1], sys.argv[2], sys.argv[3]
+          python3 - "${{ inputs.stage }}" "${{ inputs.mode }}" "${{ inputs.chunks }}" "${{ inputs.src_run_id }}" "${{ inputs.wave }}" "${{ inputs.wave_size }}" <<'PY' > "$GITHUB_OUTPUT"
+          import json, os, subprocess, sys
+          stage, mode, override, src_run, wave, wave_size = sys.argv[1:7]
           if mode == "sanity":
-              chunks = [0]
-          elif override.strip():
-              chunks = [int(x) for x in override.split(",") if x.strip()]
+              print("chunks=" + json.dumps([0])); sys.exit()
+          if override.strip():
+              print("chunks=" + json.dumps([int(x) for x in override.split(",") if x.strip()])); sys.exit()
+          if src_run.strip():
+              # generated sources live in the `tracka-src` artifact of that run
+              subprocess.check_call(["gh", "run", "download", src_run,
+                                     "-n", "tracka-src", "-D", "/tmp/src"])
+              m = f"/tmp/src/stage{stage}/manifest.json"
           else:
               m = f"CA/harness/stages/stage{stage}/manifest.json"
-              chunks = [c["chunk"] for c in json.load(open(m))["chunks"]]
-          print("chunks=" + json.dumps(chunks))
+          allc = [c["chunk"] for c in json.load(open(m))["chunks"]]
+          W = int(wave_size)
+          if len(allc) > W:
+              w = int(wave) if wave.strip() else 0
+              allc = allc[w * W:(w + 1) * W]
+          print("chunks=" + json.dumps(allc))
+          print("total=" + str(len(json.load(open(m))["chunks"])))
           PY
       - run: echo "stage=${{ inputs.stage }} mode=${{ inputs.mode }} chunks=${{ steps.plan.outputs.chunks }}"
 
@@ -73,10 +104,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Materialize project + chunk file
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           cp -r CA/harness/skeleton probe
           mkdir -p probe/test
-          cp CA/harness/stages/stage${STAGE}/Stage${STAGE}Chunk_${{ matrix.chunk }}.sol probe/test/
+          if [ -n "${{ inputs.src_run_id }}" ]; then
+            gh run download ${{ inputs.src_run_id }} -n tracka-src -D /tmp/src
+            cp /tmp/src/stage${STAGE}/Stage${STAGE}Chunk_${{ matrix.chunk }}.sol probe/test/
+          else
+            cp CA/harness/stages/stage${STAGE}/Stage${STAGE}Chunk_${{ matrix.chunk }}.sol probe/test/
+          fi
+          ls -la probe/test/
           chmod -R a+rwX probe
 
       - name: Resume KCFG checkpoint (optional)
@@ -143,6 +182,11 @@ jobs:
               grep -E 'PROOF (PASSED|FAILED)' /tmp/prove_one.log >> "$V"
             elif [ "$rc" -eq 124 ]; then
               echo "=== $t INCOMPLETE (wall-timeout; kcfg checkpointed) ===" >> "$V"
+            elif grep -qE 'FoundryCheat|#address\( FoundryCheat' /tmp/prove_one.log; then
+              # symbolic-address/cheatcode artifact, NOT a finding (see CA/kontrol 08.4)
+              echo "=== $t INCOMPLETE (CHEATCODE-FP; kcfg checkpointed) ===" >> "$V"
+            elif grep -qE 'cannot shrink further|PENDING:' /tmp/prove_one.log; then
+              echo "=== $t INCOMPLETE (ABORT: step budget; kcfg checkpointed) ===" >> "$V"
             elif grep -qE 'CHEATCODE_UNIMPLEMENTED|[Uu]nimplemented|Exception|Fatal' /tmp/prove_one.log; then
               echo "=== $t INCOMPLETE (abort; kcfg checkpointed) ===" >> "$V"
             else

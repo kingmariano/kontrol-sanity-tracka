@@ -18,5 +18,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a2_upgrade", predicate(), limit=40,
+    common.run_stage("a2_upgrade", predicate(), limit=200,
                      note="Unprotected upgrade / attacker-controlled delegatecall (Track A P0)")

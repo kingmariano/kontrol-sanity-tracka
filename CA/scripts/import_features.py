@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Import opcode_features from the persistent parquet into the (rebuilt) DuckDB.
 30-second replacement for the 31-minute rescan after a Codespace recycle."""
+import os
 import sys
 import time
 import duckdb
 
 DB = "/tmp/eth-contracts/eth_contracts.duckdb"
-PQ = "/workspaces/codespaces-blank/CA/data/opcode_features.parquet"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PQ = os.path.join(ROOT, "data", "opcode_features.parquet")
 
 con = duckdb.connect(DB)
 con.execute("SET memory_limit='4GB'")

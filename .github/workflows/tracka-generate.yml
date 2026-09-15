@@ -1,0 +1,133 @@
+# tracka-generate — build the Track A target universe and chunk it, entirely in CI.
+#
+# Heavy work ONLY in Actions (no Kontrol/docker/duckDB in the codespace):
+#   1. fetch the Zellic dataset zips (cached across runs),
+#   2. build the DuckDB (contracts + bytecodes) and import the committed opcode
+#      features,
+#   3. build the EXTENDED features table (disp_sel/called_sel/... the Track A
+#      scanners need; cached — this is the expensive disassembly pass),
+#   4. run the six sweepable Track A scanners over the FULL match (no top-N cap),
+#   5. generate ProbeBaseA chunk sources for every target, embedding real
+#      runtime bytecode,
+#   6. upload `tracka-src` (chunk .sol + .tests + manifest) for the prove matrix.
+#
+# The Committed `data/stages/*_targets.json` are only deployment-ranked SAMPLES;
+# the authoritative universe is the full `<scanner>.parquet` produced here.
+name: tracka-generate
+
+on:
+  workflow_dispatch:
+    inputs:
+      classes:
+        description: 'comma list of Track A classes'
+        required: false
+        default: 'a1,a2,a5,a6,a7,a9'
+        type: string
+      limit:
+        description: 'max targets per class (0 = full matched set; large => huge artifact)'
+        required: false
+        default: '250'
+        type: string
+      rebuild_features:
+        description: 'force rebuild of the extended features parquet'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install python deps
+        run: pip install --quiet duckdb pandas pyarrow numpy pycryptodome
+
+      - name: Cache Zellic dataset zips
+        uses: actions/cache@v4
+        with:
+          path: /tmp/eth-contracts/*.zip
+          key: zellic-zips-v1
+
+      - name: Fetch dataset zips
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/eth-contracts
+          base=https://huggingface.co/datasets/Zellic/all-ethereum-contracts/resolve/main
+          [ -s /tmp/eth-contracts/contracts.zip ] || curl -fsSL -o /tmp/eth-contracts/contracts.zip "$base/contracts.zip"
+          [ -s /tmp/eth-contracts/bytecodes.zip ] || curl -fsSL -o /tmp/eth-contracts/bytecodes.zip "$base/bytecodes.zip"
+          test "$(stat -c%s /tmp/eth-contracts/contracts.zip)" = "2251610719"
+          test "$(stat -c%s /tmp/eth-contracts/bytecodes.zip)" = "4139739279"
+          ls -la /tmp/eth-contracts/*.zip
+
+      - name: Build DuckDB (contracts + bytecodes)
+        run: |
+          set -euo pipefail
+          cp CA/scripts/ingest.py CA/scripts/finalize.py /tmp/eth-contracts/
+          cd /tmp/eth-contracts
+          python3 -u ingest.py
+          python3 -u finalize.py
+          cd "$GITHUB_WORKSPACE"
+          python3 CA/scripts/import_features.py
+
+      - name: Cache extended features
+        id: featcache
+        uses: actions/cache@v4
+        with:
+          path: CA/data/stages/features_ext.parquet
+          key: tracka-features-ext-v1
+
+      - name: Build extended features (if missing)
+        if: steps.featcache.outputs.cache-hit != 'true' || inputs.rebuild_features
+        run: |
+          set -euo pipefail
+          python3 CA/scanners/common.py --build
+
+      - name: Scan Track A classes (full match)
+        run: |
+          set -euo pipefail
+          declare -A SC=( [a1]=scan_a1_init.py [a2]=scan_a2_upgrade.py [a5]=scan_a5_multicall.py [a6]=scan_a6_fee.py [a7]=scan_a7_unchecked.py [a9]=scan_a9_unauth_pull.py )
+          IFS=',' read -ra CS <<< "${{ inputs.classes }}"
+          for c in "${CS[@]}"; do
+            echo "::group::scan $c -> ${SC[$c]}"
+            python3 "CA/scanners/${SC[$c]}"
+            echo "::endgroup::"
+          done
+
+      - name: Generate ProbeBaseA chunks per class
+        run: |
+          set -euo pipefail
+          declare -A TGT=( [a1]=a1_init [a2]=a2_upgrade [a5]=a5_multicall [a6]=a6_fee [a7]=a7_unchecked [a9]=a9_unauth_pull )
+          IFS=',' read -ra CS <<< "${{ inputs.classes }}"
+          for c in "${CS[@]}"; do
+            echo "::group::generate $c"
+            python3 CA/scripts/gen_track_a.py --class "$c" \
+              --targets-parquet "CA/data/stages/${TGT[$c]}.parquet" \
+              --db /tmp/eth-contracts/eth_contracts.duckdb \
+              --limit "${{ inputs.limit }}"
+            echo "::endgroup::"
+          done
+          echo "=== chunk counts ==="
+          for d in CA/harness/stages/stagetracka_*/; do
+            echo "$d: $(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['chunks']))" "$d/manifest.json")"
+          done
+
+      - name: Upload Track A sources (chunks + tests + manifests)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracka-src
+          path: |
+            CA/harness/stages/stagetracka_*/Stage*.sol
+            CA/harness/stages/stagetracka_*/chunk_*.tests
+            CA/harness/stages/stagetracka_*/manifest.json
+          if-no-files-found: error
+          retention-days: 30

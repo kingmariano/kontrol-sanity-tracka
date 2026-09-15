@@ -21,5 +21,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a8_callback", predicate(), limit=40,
+    common.run_stage("a8_callback", predicate(), limit=200,
                      note="Hostile callback accounting (Track A P2, needs REENTRANT template)")

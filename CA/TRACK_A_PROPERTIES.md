@@ -195,3 +195,44 @@ Scanner yield (unique bytecodes / deployments matching, metadata-stripped):
 A1 39,130 / 475,534 · A2 18,031 / 1,605,663 · A3 18,990 / 435,167 ·
 A4 2,460 / 2,655 · A5 4,260 / 5,482 · A6 73,429 / 95,500 ·
 A7 96,800 / 8,629,770 · A8 25,435 / 47,336 · A9 9,828 / 14,621.
+
+---
+
+## Where we are (2026-09-15) — Track A full-matrix build
+
+**Harness v2 (`ProbeBaseA`).** Keccak-free token observation via `ConsentToken`
+fixed slots; `NSLOTS=32`; selectable state model `_seedZeroed` (fast; `P_AUTH_WRITE`
+valid) vs `_seedSymbolic` (`setArbitraryStorage`; sound — catches writes that store
+zero, closing the "favourable zero state" FN); centralised `_assumeAttacker`
+(kills the 3-way symbolic-address branching); scoped `_checkValue` (A5) and
+`_checkVictim` (A9, observed on `CONSENT_TOKEN=0x…1111`).
+
+**Controls (v2).** Same-shape MUST_FAIL/MUST_PASS pairs, role-gated on
+`ADMIN=0xA11CE` (not the old `address(0)` trick). Pinned by a **concrete**
+`test/TrackASanity.t.sol` (12/12 green locally) before any symbolic CI run — the
+biggest quality upgrade over stages 1–3.
+
+**Sanity gate (CI).** The light-batch sanity runs are green: every MUST_FAIL
+control `PROOF FAILED`, every MUST_PASS `PROOF PASSED` (A1/A2/A6/A7 + A9 + A5).
+These ran on the pre-v2 controls; the v2 controls are re-validated by the
+per-class `tracka-a*` callers in `mode: sanity`.
+
+**Full matrix (CI).** Targets are regenerated for the Track A scope only (never
+reused from stages 1–3):
+- `tracka-generate.yml` (CI): fetch Zellic zips → build DuckDB → build the
+  **extended** `features_ext.parquet` (the Track A scanners need `disp_sel`/
+  `called_sel`; the committed `opcode_features.parquet` is the older sig-* table)
+  → run the six scanners over the **full match** (`<scanner>.parquet`; the
+  committed `*_targets.json` are only deployment-ranked samples) → generate
+  `ProbeBaseA` chunks with real bytecode embedded → upload `tracka-src`.
+- `gen_track_a.py`: per-class emitter (chunk 0 = controls; SINGLE emits zeroed +
+  symbolic probes; PULL/VALUE scoped).
+- `stage-matrix.yml`: consumes `tracka-src` via `src_run_id`, supports `wave`/
+  `wave_size` (GitHub matrix limit 256).
+- `resume-watchdog.yml`: Track A only; stuck-run cancel + resume + next-wave
+  follow (reads the full manifest from the latest `tracka-generate` run).
+
+**Open scaling note.** The full matched universe per class is large (A7 ~96.8k
+bytecodes); `tracka-generate` takes a `limit` (default 250/class) so the first
+campaign is tractable and artifacts stay small. `limit=0` sweeps the entire
+matched set in waves.

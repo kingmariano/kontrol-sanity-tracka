@@ -21,5 +21,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a1_init", predicate(), limit=40,
+    common.run_stage("a1_init", predicate(), limit=200,
                      note="Unprotected initializer/reinitializer takeover (Track A P0)")

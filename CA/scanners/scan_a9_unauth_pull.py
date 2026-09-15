@@ -29,5 +29,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a9_unauth_pull", predicate(), limit=40,
+    common.run_stage("a9_unauth_pull", predicate(), limit=200,
                      note="Unauthenticated pull / attacker-named payer (Track A P0)")

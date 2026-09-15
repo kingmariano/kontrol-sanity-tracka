@@ -22,5 +22,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a6_fee", predicate(), limit=40,
+    common.run_stage("a6_fee", predicate(), limit=200,
                      note="Deflationary / fee-on-transfer / rebasing accounting (Track A P1)")

@@ -1,0 +1,16 @@
+{
+ "stage": "tracka_a6",
+ "chunks": [
+  {
+   "chunk": 0,
+   "class": "CONTROLS",
+   "tests": [
+    "test_a6_c0_0_z",
+    "test_a6_c0_0_s",
+    "test_a6_c0_1_z",
+    "test_a6_c0_1_s"
+   ],
+   "targets": []
+  }
+ ]
+}

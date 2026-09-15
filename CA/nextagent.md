@@ -1,306 +1,398 @@
-# 🤝 nextagent.md — Campaign Handoff (write date: 2026-09-11, ~20:00 UTC)
+#  nextagent.md — Track A Handoff (written 2026-09-15)
 
-> ## ⚠️ UPDATE 2026-09-11 ~21:30 UTC (next agent)
-> **F9 (§2 row 9, §3) is NOT a live zero-day.** The proven drain requires
-> `slot5 == 0`, but all 194 funded instances have `slot5 = 1`; `0x0b5ab3d5`
-> reverts `InvalidJump` on them (verified via `eth_call`), and a `slot5=0`
-> state-override makes it succeed. The payout address is `slot2` (a third-party
-> EOA), never the caller. Machine-checked in `CA/poc/` (5/5 tests).
-> Full analysis: **`CA/FINDING_9_S2-38.md`**. See §9 below.
->
-> Also: Stage 2 run completed → `rerun-failed-jobs` POSTed (HTTP 201, queued).
-> Stage 1 chunks 12–15 were failing instantly because the in-flight run's SHA
-> predates those files → new dispatch **34649498066** (chunks 12–15) queued.
+> **UPDATE 2026-09-15 (Track A full-matrix implementation).** The §5 "BROKEN
+> STATE" is **resolved**. `ProbeBaseA` builds green; the v2 controls are pinned by
+> a concrete `test/TrackASanity.t.sol` (12/12); `gen_track_a.py` is rewritten to
+> the ProbeBaseA API and emits per-class chunks (controls + full sweep); CI now
+> has `tracka-generate.yml` (duckDB + extended features + scanners + chunk gen)
+> and per-class `tracka-a{1,2,5,6,7,9}.yml` callers over `stage-matrix.yml`
+> (`src_run_id` + `wave` support); `resume-watchdog.yml` is Track-A-only with
+> stuck-run cancel + next-wave follow. See `CA/TRACK_A_PROPERTIES.md` →
+> "Where we are (2026-09-15)" for the authoritative status.
 
-Read this fully before acting. It is the complete state of the smart-contract
-zero-day audit campaign. You are continuing an ongoing operation; the human
-operator ("the user") is actively directing it in chat.
-
----
-
-## 0. Mission (from the very beginning)
-
-Hunt **permissionless zero-day vulnerabilities** (any EOA, only calldata needed)
-across **all 69,788,231 deployed Ethereum contracts** (Zellic dataset:
-69.8M deployments / 1,539,858 unique bytecodes) using **Kontrol symbolic
-execution** (KEVM-based; docker image `runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255`)
-with an etch + setArbitraryStorage-style harness, organized as staged CI
-proof-matrices, triaged via a **radar → proof → census → live-funds** pipeline.
-
-**Zero-day bar:** a stranger with an EOA and the model's calldata can drain a
-live contract; the Kontrol counterexample is the machine-checked receipt.
-
-**Iron rule (user decision): ALL new proof batches run in CI public repos —
-never locally.** Each repo gets 20 parallel CI jobs. /tmp is volatile.
+> **READ THIS FULLY BEFORE ACTING.** It is the current state of the campaign +
+> the exact broken/next steps from the previous agent's session.
+> The previous agent (this file's author) hit a tool-call malfunction mid-session
+> and could not finish; the work is **partially applied**. See §5 "BROKEN STATE".
 
 ---
 
-## 1. Pipeline stages (all built, working)
+## 0. MISSION (unchanged from the very beginning)
 
-| Stage | What | Status |
-|---|---|---|
-| 0 — Radar | metadata-stripped opcode scan over 69.8M deployments → `CA/data/opcode_features.parquet` (~69MB, on GitHub) | ✅ done |
-| 1 — Cheap sweep | P1 unprotected write (`sstore_no_caller`+`delegate`) / P2 balance+`selfdestruct` | ✅ sanity green; 78 targets / 53 chunks; full pending |
-| 2 — Deep auth | P4 two-phase transient (SIR-class) + P3 proxy (naive-proxy hijack) | sanity re-run in flight; 80 targets / 29 chunks |
-| 3 — Math/profit | P7 div-heavy profit oracle | sanity re-run in flight; 40 targets / 25 chunks |
-| 2.5 | selector-DB interface recovery (4byte.directory) for calldata shaping | planned |
-| 4 — 7702 | P8 delegate accounts | n/a |
+Hunt **permissionless zero-day vulnerabilities** (any EOA, calldata-only) across
+**69,788,231 deployed Ethereum contracts** (Zellic dataset) using **Kontrol
+symbolic execution**, organized as staged CI proof-matrices, triaged via
+**radar → proof → census → live-funds**.
 
-Property templates P1–P8 are defined in `CA/STAGES.md` with case studies
-(SIR, Balancer, SWEAT, Cetus, SCONE-bench) in `CA/ZERO_DAY_RESEARCH.md`.
+**Zero-day bar:** a stranger with an EOA + the model's calldata can drain a live
+contract; the Kontrol counterexample is the machine-checked receipt.
 
-### Harness conventions (v5, battle-tested — do not change)
-- Foundry project per repo from `CA/harness/skeleton/` (forge-std in `lib/`).
-- Every probe contract inherits `ProbeBase` (`skeleton/src/ProbeBase.sol`), which
-  etches a storage-instrumented MockERC20 (embedded runtime) at USDC/WETH/USDT/DAI.
-- Test shape: `vm.etch(target, hex"<runtime bytecode>")`, `vm.deal(target, 1 ether)`,
-  slots 0–15 zeroed **and snapshotted** via `vm.store`/`vm.load`, `vm.prank(attacker)`
-  with **symbolic attacker** and symbolic calldata args.
-- Property suite (all asserted every probe): `P_BALANCE_LOST`, `P_ATTACKER_PROFIT`,
-  `P_STORAGE_CHANGED` (any of slots 0–15 changed), `P_AUTH_WRITE` (attacker value in
-  a slot), and `_checkTokens` → `P_TOKEN_OUTFLOW`/`P_TOKEN_APPROVAL`/`P_TOKEN_TO_ATTACKER`.
-- One `kontrol prove --match-test '<bare test name>'` per test (**bare name, not
-  `Contract.test`**), `--auto-abstract-gas --max-depth 1000 --smt-timeout 10000
-  --workers 2`, verdicts flushed to `verdicts_chunk_N.txt` per test, KCFG
-  checkpoints uploaded as artifacts (resume via `resume_run_id` + `gh run download`).
-- chmod dance between tests (container uid 1010 vs runner): `sudo chmod -R a+rwX .`
-- Chunk 0 is ALWAYS the control batch and must hold:
-  stage 1 → VulnerableControl FAIL / SafeControl PASS;
-  stage 2 → VulnerableTransient FAIL / SafeTransient PASS / NaiveProxy FAIL / SafeProxy PASS;
-  stage 3 → VulnerableProfit FAIL / SafeProfit PASS / VulnerableAmplify FAIL / SafeAmplify PASS.
-  If controls break, the run is void.
+### IRON RULES (non-negotiable — user has repeated these many times)
+1. **NEVER run Kontrol or docker locally.** Every Kontrol/docker job runs as a
+   **GitHub Actions CI workflow**. "No matter how small the work is, as long as it
+   involves Kontrol or docker, run it in GitHub Actions — I am on a 2-core machine
+   so my CPU gets filled up quickly."
+2. **Local `forge build` / `forge test` IS allowed** (no docker). Use it to shape
+   and sanity-check proofs before CI.
+3. `/tmp` is volatile (wiped on recycle). The huge DB
+   (`/tmp/eth-contracts/eth_contracts.duckdb`, ~23.6 GB) is **reproducible** via
+   `CA/scripts/recover.sh` (which DOES use docker — only run it in CI or when the
+   user accepts it; normally the parquet on GitHub is enough).
+4. Every batch / finding / census gets committed to the relevant repo(s).
+5. The user likes **per-step verification end-to-end** and rich status tables.
+6. This is a **2-core Codespaces, disk ~90% full**. Do not download huge datasets
+   locally. Never delete `~/.local/share/opencode` (live session DB) without asking.
 
 ---
 
-## 2. FINDINGS LEDGER (9 findings; scoreboard 8 confirmed + 1 in re-proof)
+## 1. WHAT HAS ALREADY HAPPENED (context)
 
-Full details in `CA/FINDINGS_HARVEST.md`, `CA/FINDINGS_BATCH1.md`,
-`CA/FINDING_2_c1_1.md`, `CA/FINDING_3_c0_2.md`, `CA/BREAKDOWN_F4_F8.md`,
-`CA/CENSUS_LIVE_FUNDS.md`.
-
-| # | Bytecode hash | Ops | Deploys | Key selectors | Verdict | Live funds |
-|---|---|---|---|---|---|---|
-| 1 | batch1 (`FINDINGS_BATCH1.md`) | — | 144 | — | CONFIRMED | dormant |
-| 2 | `0x038cfd30…80ca497` | 412 | 10,029 | `0x19ab453c` | CONFIRMED | not censused |
-| 3 | `0xf9e2d368…0ba1907` | 509 | 19,130 | `0xf09a4016` | CONFIRMED | not censused |
-| 4 | `0x1cf5a0fe…4da3aaf3` | 568 | 1,352 | TBD (ecrecover auth) | **SUSPECT — kore crash** → re-proof RUNNING | **$2,112.55 USDC + 5.5695 ETH** (103 USDC holders, 818 ETH-funded) |
-| 5 (S2-6) | `0xa24e966a…cada59` | 436 | 4,374 | `0x44439209` | CONFIRMED (priv-addr install) | dust only |
-| 6 (S2-10) | `0x6f83343a…4c534df0` | 752 | 3,004 | prime `0x6b9f96ea` → drain `0x00821de3` | CONFIRMED (primable drain) | dormant |
-| 7 (S2-13) | `0x3b7d6f59…5e904a06` | 264 | 2,116 | `0x6b9f96ea` both phases | CONFIRMED (prime=0 trivial) | dormant |
-| 8 (S2-23) | `0x1aba7e71…4307e3d9` | 972 | 971 | `0x19ab453c` both phases | CONFIRMED (SIR-shape) | **47.0 USDC on flagship** |
-| **9 (S2-38)** | `0x8824fcf9…2a971c8a` | ~1142B | **376** | `0x05b34410`, `0x0b5ab3d5`, +8 more | property violation (slot5=0 model) — **LIVE EXPLOIT REJECTED** | 194/376 funded but **all slot5=1 → sweep reverts; payout is slot2, not attacker** (`FINDING_9_S2-38.md`) |
-
-### Key instance addresses (copy-paste)
-```
-# F8 flagship (holds 47.0 USDC, verified 3 ways, NOT yet exploited — zero outgoing USDC transfers ever)
-0x3952fe747D6967b3Cf53A84593a95114E7De3201
-# F4 top USDC holder (1,046 USDC) / verified SmartAccountProxy family sample
-0x91d53f76dde0b809eea80e0969d5625e07def10b
-0xf040b7c786a90852bf387D3Afc81d4E627236D24
-# F9 largest funded instances (USER IS DECOMPILING THESE ON DEDAUB — unverified code)
-0xbce5113025fecc7b6e3118ea043e5ba7492c02b5   (0.2 ETH)
-0x4d7abff0967ccc9f9a66d7b1da61d8440f0c079f   (0.1 ETH)
-0x3fe9a9fe7e6016ce82f58373db739b6d6cb3e876   (0.012 ETH — the ~190-instance uniform pattern)
-# F5 inspectable: 0x676e1c7b4b297ce36706eacdfe6d7fb93e0211de
-# F6 inspectable: 0x049369551ad83b3c76b0dc58c26b06a335e41dae
-# F7 inspectable: 0x0b371778885b6fc9bf12eccf41f2ae9eb9c563f6
-```
-
-### Census summary (all queries verified, 0 missing)
-F5: 2/4374 ETH (dust), 0 USDC · F6/F7: fully dormant · F8: 8 ETH-funded,
-4 USDC holders (47.2 USDC) · F4: 818 ETH-funded (5.57 ETH), 103 USDC (2,112.55) ·
-F9: 194 ETH-funded (7.787 ETH), 0 USDC. Raw CSVs: `CA/data/census/`.
+- **Main campaign (stages 1/2/3) is STOPPED and fully triaged.** Cancelled
+  in-flight runs; disabled `resume-watchdog`, `stage1-cheap`,
+  `stage2-deepauth`, `stage3-math` on all 5 repos. Zero non-completed runs.
+  Net result: **1 real live finding** (CollectionBeaconProxy
+  `setFinalImplementation`, `test_p1_c27_1`) + FPs. Details in
+  `CA/triage/RETRIAGE.md`, `CA/triage/stage1/AUDIT.md`.
+- **Resolv protocol audit is DONE and was DELETED this session** at the user's
+  request (`CA/protocols/resolv/` removed; `CA/protocols/` removed). Its final
+  state: run `34900452514` = **68 PASS / 0 FAIL / 2 INCOMPLETE**; FINDING-OFT-01
+  (`SimpleOFTAdapter` missing `_disableInitializers`) was the only finding.
+  NB the persistent **Kontrol knowledge base `CA/kontrol/` was KEPT** (it is tool
+  knowledge, not protocol files) — it still cites Resolv examples.
+- **Disk cleanup done this session:** removed ~1.2 GB unused VS Code extensions
+  (openai.chatgpt, markdown-pdf+chrome, web-dev snippets), uv python cache, npm
+  cache, copilot cache. Deleted Resolv dir + `/tmp/rv4|rv5|rv6|kcfg`. (Freed
+  space may only show after a VS Code Reload Window, as deleted extension files
+  are held open by the VS Code server.)
+- **The `nextagent.md` you are reading replaced the old main-campaign handoff**
+  (old content: F4–F9 findings ledger, census, live-gate recheck). If you need
+  that, the underlying docs still exist: `CA/FINDINGS_HARVEST.md`,
+  `CA/FINDING_*.md`, `CA/CENSUS_LIVE_FUNDS.md`, `CA/LIVE_GATE_RECHECK.md`,
+  `CA/STAGES.md`, `CA/ZERO_DAY_RESEARCH.md`, `CA/VULN_CLASS_RESEARCH.md`.
 
 ---
 
-## 3. F9 DEEP-DIVE — RESOLVED: not a live zero-day (see `FINDING_9_S2-38.md`)
+## 2. CURRENT WORKSTREAM: **TRACK A** (the user's active directive)
 
-**Outcome (next agent):** the PoC was built at `CA/poc/` and the open question is
-answered. The recipient is `slot2`; the sweep is enabled only when `slot5 == 0`;
-all funded instances have `slot5 = 1` → `InvalidJump`, no drain. The disassembly
-below is correct and retained for reference.
+Track A = the **sweepable permissionless-drain classes** that a zeroed/arbitrary
+storage, ABI-agnostic bytecode probe can actually reach. Spec = **`CA/TRACK_A_PROPERTIES.md`**.
 
-User asked for a **realistic Foundry PoC in a `poc/` folder** draining the full
-7.787 ETH to an attacker EOA. Work started: the runtime bytecode (1,142 B) was
-disassembled. Findings so far:
-
-- Dispatcher with 10 selectors: `0x05b34410`, `0x0b5ab3d5`, `0x13af4035`,
-  `0x2b20e397`, `0x3fa4f245`, `0x674f220f`, `0x8da5cb5b`, `0xbbe42771`,
-  `0xfaab9d39`, `0xfb1669ca`.
-- **Owner gate** at 0x3cc(972)/0x384(900)/0x2d8(728): `SLOAD(0) == CALLER`,
-  else **silent no-op** (jumps to dispatcher start → STOP, does NOT revert).
-- `0xfaab9d39` → transferOwnership: owner-gated `SSTORE(slot0, arg)`.
-- `0x13af4035` → owner-gated **sets slot2 AND slot3** (address fields) with
-  event topic `0xa2ea9883…` (recipient update).
-- `0x2b20e397` → returns slot0 (owner). `0x8da5cb5b` → returns slot2.
-  `0x674f220f` → returns slot3. `0x3fa4f245` → returns slot4 (uint).
-  `0x05b34410` → returns slot1 (getter, **no auth** — the "prime" arg in the
-  model was actually unused; the model's prime=0 was the getter's arg).
-- **`0x0b5ab3d5` — THE DRAIN (NOT owner-gated):** checks `SLOAD(5) & 0xff == 0`
-  (inverted JUMPI: proceeds only when slot5 == 0, i.e. unclaimed), then
-  `CALL` sends **the contract's ENTIRE balance to `SLOAD(2)`** (recipient slot).
-  If the CALL fails → `SELFDESTRUCT(0x…dead)`.
-- `0xbbe42771` → owner-gated claim path (slot5 flag set, CALL payout, event
-  topic `0xbb2ce2f5…`) — not fully stack-simulated yet.
-- **Model reconciliation:** in the harness slots 0–7 are zeroed → slot5==0
-  (gate passes) and slot2==0x0 → `0x0b5ab3d5` alone drains the full balance
-  **to the zero address**. That's why the counterexample needed only selB
-  (selA was a no-op getter).
-- **OPEN QUESTION — RESOLVED (no Dedaub needed):** live storage reads show
-  slot0=owner contract `0x012233b3…` (fixed), slot2 ∈ {0x0, `0x5fc8a61e…`,
-  `0x4811e699…`, `0x5c19cf6b…`} (third-party EOAs, owner-set only), and
-  **slot5=1 on all 194 funded instances**. `0x0b5ab3d5` requires slot5==0, so it
-  reverts (`InvalidJump`) on every funded instance; a state-override to slot5=0
-  makes it drain — to slot2, not the caller. **F9 is not attacker-profitable.**
-- **PoC — DONE:** `CA/poc/` Foundry project (5/5 tests) with (a) deterministic
-  etch tests replicating the counterexample and (b) mainnet-fork tests proving
-  the live gate (`FINDING_9_S2-38.md`). Commit to the repos.
-
----
-
-## 4. INFRA — API keys & the silent-failure lessons (READ THIS)
-
-Keys live in `CA/.env` (gitignored). Status as of handoff:
-- **Alchemy (new)**: WORKS (user rotated 2026-09-11). Old one was revoked.
-- **ETHERSCANV2_API_KEY**: WORKS — best ETH path (`balancemulti`, 20 addr/call, 5 rps).
-- **dRPC**: WORKS again (earlier "expired" was transient) — but **free tier
-  silently 403s JSON-RPC BATCHES** (single calls fine).
-- **BlockPI**: HTTP single calls fine; HTTP batches 403; **WSS pipelining WORKS (~50 rps with pacing + error-retry)** — best USDC path.
-- **INFURA, ANKR: DEAD. GITHUB_API_KEY: user says re-rotated (verify before use).**
-  Fallback for GitHub API: `git credential fill` token works for pushes/API reads.
-- Dune API key exists (in .env, user pasted in chat — should be rotated); CLI at
-  `/home/codespace/.local/bin/dune` (`dune query run-sql --sql "..." -o json`);
-  `tokens_ethereum.balances` view is BROKEN server-side.
-
-**Silent-failure horror stories (do not repeat):**
-1. Alchemy retry-storm dropped responses → census reported all-zeros. Caught
-   ONLY because the user manually checked Etherscan and found the F8 flagship
-   still holding 47 USDC.
-2. dRPC batch 403s defaulted every USDC balance to 0 in two full sweeps.
-3. Rule: every sweep MUST carry a ground-truth assert (e.g. flagship == 47e6)
-   and report a MISSING count; never default failures to zero.
-
-Working sweep scripts (in `CA/scripts/`): `es_eth_sweep.py` (Etherscan ETH),
-`wss_usdc_sweep.py` (BlockPI WSS USDC, queue-retry), `drpc_usdc_sweep.py`,
-`balance_sweep.py` (deprecated). F9-only copies in /tmp are ephemeral.
-
----
-
-## 5. LIVE WORKFLOWS (state at handoff — POLL THESE FIRST)
-
-| Repo | Run | What | State |
+| Stage | Class | Template | Sweepable? |
 |---|---|---|---|
-| `kingmariano/kontrol-stage1-sweep` | 34592498729 | Wave 1 rerun chunks 2,6,7,10 (those files exist at the old SHA); **chunks 12–15 failed instantly because the old SHA lacks them** | in_progress (4 jobs) |
-| `kingmariano/kontrol-stage1-sweep` | **34649498066** | NEW dispatch (2026-09-11 21:27) for chunks 12–15 on current `main` | queued |
-| `kingmariano/kontrol-stage2-deepauth` | 34602954273 | run completed: 34 success / 15 cancelled → **`rerun-failed-jobs` POSTed (HTTP 201, queued)** | rerun queued |
-| `kingmariano/kontrol-f4-reproof` | **34639568835** | F4 kore-crash re-proof, 3 solver regimes: default (depth 1000/smt 10s), shallow (250/5s), smtheavy (2000/60s) × 4 tests (p4_two_phase, p1_sstore_no_caller, p7_drain_oracle, VulnerableTransient CONTROL-must-FAIL) | in_progress |
+| A1 | unprotected initialize / reinitialize | SINGLE | ✅ |
+| A2 | unprotected upgrade / attacker-controlled impl slot | SINGLE | ✅ |
+| A5 | multicall / batch `msg.value` reuse | VALUE | ✅ |
+| A6 | fee-on-transfer / manipulable accounting | SINGLE | ✅ |
+| A7 | unchecked external call still advancing state | SINGLE | ✅ |
+| A9 | unauthenticated pull (attacker-named payer) | UNAUTH_PULL + ConsentToken | ✅ |
+| A3 | signature / permit replay | needs SIGNER template | ❌ → Track B |
+| A4 | rounding / round-trip inflation | multi-party, symbolic-amount mul | ❌ → Track B |
+| A8 | hostile callback / reentrancy | needs concrete etched counterparty | ❌ → Track B |
 
-Poll commands:
+Each stage MUST ship a **chunk 0 control gate** (`mode: sanity`) that is green
+before the full matrix fires: a MUST_FAIL and a MUST_PASS control with the **same
+shape**, differing only by the class bug.
+
+User's explicit goals for this Track A build (verbatim intent):
+- "setup/harness **much better than the previous stage1/2/3 which had different lapses**";
+- "**implement all those properties robustly**";
+- "**commit all the workflow to my main GitHub account (kingmariano)**";
+- "**watchdogs implemented effectively**".
+
+---
+
+## 3. THE KONTROL KNOWLEDGE BASE — USE IT, DON'T REDISCOVER
+
+**`CA/kontrol/`** (11 files) is the compaction-proof memory. Read it first:
+`README.md`, `01-ecosystem-architecture.md`, `02-build.md`,
+`03-prove-cli-flags.md`, `04-cheatcodes.md`, `05-kcfg-and-diagnosis.md`,
+`06-lemmas-advancing-proofs.md`, `07-performance-and-cse.md`,
+`08-lessons-from-our-campaigns.md`, `09-property-authoring-playbook.md`,
+`10-config-snippets.md`.
+
+Highest-value gotchas (ground truth for pinned `1.0.255`):
+- **`bound()` is NOT modelled by Kontrol → always use `vm.assume(...)`.**
+- **Inline state-variable initializers read as ZERO** under Kontrol
+  (`address internal alice = address(0xA11CE);` was `0`). Fix: `address internal
+  constant`, or assign in `setUp()`. (This caused 27 spurious FAILs in Resolv.)
+- **Symbolic addresses branch 3-way**; kill it with `vm.assume(addr != address(this));
+  vm.assume(addr != address(vm)); vm.assume(addr != <each deployed>);`.
+- **Verdict classification (no FP / no FN):** `PROOF PASSED` → pass; `PROOF FAILED`
+  with a concrete status code + reproducing model → REAL; blank status code +
+  `#And { a0 == #address( FoundryCheat ) }` → **CHEATCODE FP**; `step exceeded …
+  cannot shrink further; stopping` + `PENDING:` → **ABORT/INCOMPLETE**; `rc=124`
+  (wall timeout) / `rc=137` (OOM/SIGKILL) → **INCOMPLETE**; revert on a state that
+  passes concretely at the model values → **SPURIOUS** (see inline-init bug).
+- **Always decode `<output>`** (revert selector) from the KCFG node JSON.
+- CI mechanics: proof dirs contain `:` → **tar the KCFG dir before upload**;
+  `chmod -R a+rwX .` **before build and before every prove** (root container vs
+  runner uid); `kontrol prove` 1.0.255 has **no `--match-contract`** → drive a
+  per-test loop from `tests/<Suite>.tests`.
+- Recommended prove flags (used by our workflows):
+  `--use-booster --no-break-on-calls --no-stack-checks --no-log-rewrites
+  --max-frontier-parallel 2 --max-depth 50000 --max-iterations 100000
+  --smt-timeout 30000 --smt-retry-limit 2 --workers 2 --step-timeout 600
+  --auto-abstract-gas`.
+
+---
+
+## 4. EXISTING TRACK A INFRASTRUCTURE (all in `CA/`)
+
+### 4.1 Harness
+- `CA/harness/skeleton/` — foundry + kontrol project (forge-std in `lib/`,
+  `kontrol-cheatcodes` in `lib/`). `foundry.toml` pins **solc 0.8.24, evm_version
+  cancun**. `kontrol.toml` present.
+- **Old** `src/ProbeBase.sol` — stage1/2/3 harness. Etches an embedded
+  `MockERC20` runtime at USDC/WETH/USDT/DAI and checks ONLY counter slots 0/1/2
+  (`transferCount`,`lastTo`/`lastSpender`). Blanket checks over slots 0..15.
+- `src/ConsentToken.sol` — real mapping-backed ERC-20 with **fixed slots**:
+  `0 balanceOf`, `1 allowance`, `2 transferCount`, `3 lastFrom`, `4 lastTo`,
+  `5 lastAmount`. Interface `IConsentToken`. (Keccak-free observation via slots 2/3/4.)
+- `src/TrackAControls.sol`, `src/TrackAValueControls.sol` — old controls (see §5).
+- Other controls: `src/Controls.sol` (VulnerableControl/SafeControl),
+  `src/Stage15Controls.sol` (transient + naive proxy), `src/Stage3Controls.sol`
+  (profit/amplify).
+- `CA/harness/controls/*.hex` — compiled control **runtime** bytecode consumed by
+  the generators via `vm.etch(target, hex"…")`. List includes
+  `VulnerableInit/SafeInit`, `VulnerableUpgrade/SafeUpgrade`, `VulnerableFee/SafeFee`,
+  `VulnerableUnchecked/SafeUnchecked`, `VulnerablePull/SafePull`,
+  `VulnerableValue/SafeValue`, `ConsentToken`, `MockERC20`, `KillerImpl`,
+  `NaiveProxy/SafeProxy`, `VulnerableControl/SafeControl`,
+  `VulnerableTransient/SafeTransient`, `VulnerableProfit/SafeProfit`,
+  `VulnerableAmplify/SafeAmplify`. **These are currently STALE** (see §5).
+- `CA/harness/stages/stage{1,2,3}/` — stage sweep chunks + `chunk_*.tests` +
+  `manifest.json`.
+- `CA/harness/stages/stagetracka_batch{1,2,3}/` — **control-only** chunks
+  (`Stage…Chunk_0.sol`, `chunk_0.tests`, `manifest.json`). No real sweep targets yet.
+
+### 4.2 Generators / tools (`CA/scripts/`)
+- `gen_stage.py` — unified per-stage target generator. Reads the DuckDB
+  `opcode_features` (gone locally after /tmp wipe) or `--from-manifest` from an
+  existing `manifest.json`. Templates: `SINGLE`, `TWO_PHASE`, `MULTI`, `PROXY`,
+  plus `HDR`/`SETUP`/`CHECKS`. **These templates target the OLD `ProbeBase` API**
+  (`_etchTokens`, `_checkTokens`, inline slot checks) — they must be rewritten for
+  the new `ProbeBaseA` API (§5/§7).
+- `gen_track_a.py` — Track A control-only generator. `--batch 1` (A1/A2/A6/A7 via
+  `gen_stage.SINGLE`), `--batch 2` (A9 via `UNAUTH_PULL` template + ConsentToken),
+  `--batch 3` (A5 via `VALUE` template). Reads `harness/controls/<Name>.hex`.
+- `build_controls.py` — **NEW this session** (see §5): runs `forge build` and
+  extracts `out/**/<Name>.json → deployedBytecode.object` into
+  `harness/controls/<Name>.hex`, for every control/token name.
+- `recover.sh` — idempotent recovery (DB+features+harness). Uses docker; CI only.
+- `triage_live.py`, `triage_enrich.py` — offline live-gate triage (DuckDB + RPC).
+- `hf_sync.py`, `import_features.py`, `export_radar.py`, `opcode_scan.py`,
+  `ingest.py`, `finalize.py`.
+
+### 4.3 Scanners + target universes (`CA/scanners/`, `CA/data/stages/`)
+- `scanners/common.py` — shared metadata-stripped, push-aware disassembly +
+  feature cache (`data/stages/features_ext.parquet`).
+- `scanners/scan_a{1..9}_*.py` — per-class candidate scanners.
+- `CA/data/stages/a{1..9}_*_targets.json` — the candidate universes; schema:
+  `{stage, note, matched_bytecodes, matched_deployments, targets:[…]}`.
+  Scanner yield (bytecodes/deployments), per `TRACK_A_PROPERTIES.md`:
+  A1 39,130/475,534 · A2 18,031/1,605,663 · A3 18,990/435,167 · A4 2,460/2,655 ·
+  A5 4,260/5,482 · A6 73,429/95,500 · A7 96,800/8,629,770 · A8 25,435/47,336 ·
+  A9 9,828/14,621.
+
+### 4.4 CI workflows (in the repos; `sanctracka` = `kingmariano/kontrol-sanity-tracka`)
+- `.github/workflows/stage-matrix.yml` — **reusable** matrix. `plan` derives
+  chunk list from `CA/harness/stages/stage<stage>/manifest.json` (or explicit
+  `chunks`); `mode: sanity` = chunk 0 only. Per-chunk job (`max-parallel: 20`,
+  `timeout-minutes: 350`) does: materialize `probe/` from
+  `harness/skeleton/` + copy the chunk `.sol` → optional KCFG resume via
+  `resume_run_id` + `gh run download` → `kontrol build` (docker) → **per-test
+  prove loop** with `timeout -k 30s <budget>` and `--match-test <bare name>` →
+  writes `verdicts_chunk_N.txt` (explicit line per test; timeout → `INCOMPLETE`)
+  → `tar -czf kcfg_checkpoint.tgz -C out proofs || true` → `exit 0` → uploads
+  `stage<stage>-results-chunk-N` (verdicts + logs) and
+  `stage<stage>-kcfg-chunk-N`.
+- `.github/workflows/tracka-batch{1,2,3}.yml` — thin callers
+  (`stage: tracka_batchN`, `mode: sanity|full`, `chunks`, `resume_run_id`).
+- `.github/workflows/resume-watchdog.yml` — self-healing. Triggers: `workflow_run`
+  (completed), `schedule */30`, `workflow_dispatch{dry_run}`. For each caller it
+  finds chunks whose verdicts are missing/`INCOMPLETE` and re-dispatches with
+  `resume_run_id` + the KCFG checkpoint. Guards: overlap (skip busy chunks),
+  runaway cap (≤8 runs/6h), progress guard (stop if incomplete set did not shrink
+  vs the previous same-`head_sha` run).
+- Also present: `stage1-cheap.yml`, `stage2-deepauth.yml`, `stage3-math.yml`
+  (main campaign; currently disabled on the repos).
+
+---
+
+## 5. ️ BROKEN STATE — WHAT THIS SESSION CHANGED AND WHAT IS NOT FINISHED
+
+The previous agent wrote the improved harness + controls + build script, but the
+**build is currently RED** and the changes are therefore **not committed**. Nothing
+was pushed. Recover as follows.
+
+### 5.1 New files written this session (present on disk)
+1. **`CA/harness/skeleton/src/ProbeBaseA.sol`** — NEW Track A harness v2. Design:
+   - Etches `ConsentToken` (deployed via `new` in `setUp`) at USDC/WETH/USDT/DAI.
+   - **Keccak-free** token observation via ConsentToken fixed slots
+     (`TK_TRANSFER_COUNT=2`, `TK_LAST_FROM=3`, `TK_LAST_TO=4`) — avoids symbolic-keccak blowup.
+   - `NSLOTS = 32` (better than stage1/2/3's 15).
+   - Selectable state model: `_seedZeroed(target)` (fast, comparable) vs
+     `_seedSymbolic(target)` = `vm.setArbitraryStorage(target)` (sound; catches
+     writes that store zero and closes the "favourable zero state" FN).
+   - `_assumeAttacker(attacker,target)` centralised; excludes `0`, `>0xff`, HEVM,
+     console, `address(this)`, `address(vm)`, target, the 4 tokens, and `ADMIN`.
+   - `ADMIN = address(0xA11CE)` role used by MUST_PASS controls.
+   - Checks: `_markBalances`, `_snapshotTarget/_snapshotTokens`,
+     `_checkTarget(target,attacker,zeroedModel)` (P_BALANCE_LOST,
+     P_ATTACKER_PROFIT, P_STORAGE_CHANGED over 32 slots; **P_AUTH_WRITE only when
+     `zeroedModel`** — under symbolic storage an untouched slot is unconstrained,
+     so `slot != attacker` would be satisfiable for the wrong reason = FP),
+     `_checkValue` (A5), `_checkTokens` (P_TOKEN_OUTFLOW via slot2, P_TOKEN_TO_ATTACKER
+     via slot4), `_checkVictim` (A9: P_UNAUTH_PULL_FROM via slot3).
+   - **BUG IN THE FILE AS WRITTEN:** lines ~33–34 still declare
+     `address internal constant HEVM = 0x7109…D12D;` and
+     `address internal constant CONSOLE = 0x0000…6c6f67;`. These **collide with
+     forge-std `lib/forge-std/src/Base.sol`** → `forge build` fails with
+     `Error (9097): Identifier already declared.` (Confirmed: the compiler points
+     at `src/ProbeBaseA.sol` line 34 `CONSOLE` vs `Base.sol:14`). An earlier
+     `sed -i` rename did NOT persist. **FIX (do this first):**
+     rename `HEVM`→`KONTROL_HEVM` and `CONSOLE`→`KONTROL_CONSOLE` in
+     `ProbeBaseA.sol`, including the two uses in `_assumeAttacker`.
+     Also rename `bytes32 now` → `bytes32 cur` (and `uint256(now)`→`uint256(cur)`)
+     in `_checkTarget` to clear warning 2319 (shadows builtin).
+2. **`CA/harness/skeleton/src/TrackAControls.sol`** — REWRITTEN (v2). Genuine
+   same-shape MUST_FAIL/MUST_PASS pairs with `address constant ADMIN = address(0xA11CE);`
+   (no more `require(msg.sender == address(0))` trick): A1 `VulnerableInit/SafeInit`,
+   A2 `VulnerableUpgrade/SafeUpgrade`, A6 `VulnerableFee/SafeFee` (manipulable
+   `reserve` → permissionless `sync()`), A7 `VulnerableUnchecked/SafeUnchecked`
+   (`pay(address,uint256)` unchecked inner call → `credited += amt`).
+3. **`CA/harness/skeleton/src/TrackAValueControls.sol`** — REWRITTEN (v2).
+   `CONSENT_TOKEN = 0x…1111`, `VALUE_ADMIN = address(0xA11CE)`. A9
+   `VulnerablePull/SafePull` (`transferFrom(solver, msg.sender, amt)`; safe adds
+   `solver == msg.sender || msg.sender == VALUE_ADMIN`). A5
+   `VulnerableValue/SafeValue` (double-credit msg.value vs single).
+4. **`CA/scripts/build_controls.py`** — NEW. Runs `forge build` in the skeleton,
+   then for each name in `NAMES` finds `out/**/<Name>.json`, takes
+   `deployedBytecode.object`, strips `0x`, writes `CA/harness/controls/<Name>.hex`.
+   Flags: `--no-build`, `--check`. **Never ran successfully yet** (blocked by 5.1.1).
+
+### 5.2 Consequences / must-do
+- **`CA/harness/controls/*.hex` are STALE** — they still hold the OLD control
+  bytecode, inconsistent with the new `.sol`. After fixing the build you MUST run
+  `python3 CA/scripts/build_controls.py` to regenerate them, and verify the new
+  control shapes are actually etched.
+- `forge build` in `CA/harness/skeleton` is currently **RED** because of
+  `ProbeBaseA.sol` (5.1.1). Fix it, then `forge build` must be green.
+- **The generators still emit OLD-API probes.** `gen_stage.py` `SETUP`/`CHECKS`
+  and `gen_track_a.py` reference `ProbeBase` + `_etchTokens`/`_checkTokens` and
+  inline slot checks. They must be rewritten to the `ProbeBaseA` API
+  (`_seedZeroed`/`_seedSymbolic`, `_snapshotTarget`, `_markBalances`,
+  `_checkTarget(target,attacker,zeroedModel)`, `_checkValue`, `_checkVictim`).
+- **No local `forge test` was added yet** to pin the controls concretely.
+
+**Nothing from this session was committed or pushed.**
+
+---
+
+## 6. REPOS / AUTH / OPS
+
+- **Main account = `kingmariano`** (the user wants Track A committed here).
+  Fit remotes in `/workspaces/codespaces-blank` (git repo root; `CA/` is a subdir):
+  `origin`=zany-xylophone (control tower), `sweep`=kontrol-stage1-sweep,
+  `stage2`=kontrol-stage2-deepauth, `stage3`=kontrol-stage3-math,
+  `sanctracka`=**kontrol-sanity-tracka** (the Track A repo), `data`=kontrol-datasets.
+  `git push` works via the stored credential helper (even when the API key is
+  stale). Token in `CA/.env` (`GITHUB_API_KEY`, scopes incl. `workflow`/`repo`).
+- The **`artsbykriss`** account (Resolv) used a separate classic token
+  `CHRIS_GITHUB_API_KEY` in `CA/.env`; the main token is read-only there. **Resolv
+  is done** — you likely don't need CHRIS. (Gotcha if you ever do: `.env` had a
+  trailing `\r`; strip with `tr -d '"' | tr -d '\r' | tr -d '[:space:]'`; push via
+  a temp `GIT_ASKPASS` + `git -c credential.helper=`.)
+- `.env` also holds HF token (`Mariano234/kontrol-campaign-data`), campaign GH
+  token, RPC keys. **Rotate anything that was ever pasted in plaintext.**
+- Hygiene: `CA/.gitignore` exists. Never commit `.env`.
+
+---
+
+## 7. EXACT NEXT STEPS (do in order)
+
+1. **Fix `ProbeBaseA.sol`** (rename `HEVM`/`CONSOLE` → `KONTROL_HEVM`/`KONTROL_CONSOLE`;
+   rename `now`→`cur`). Then:
+   ```bash
+   cd /workspaces/codespaces-blank/CA/harness/skeleton && forge build
+   ```
+   must be green.
+2. **Regenerate control bytecode:**
+   ```bash
+   python3 /workspaces/codespaces-blank/CA/scripts/build_controls.py
+   python3 /workspaces/codespaces-blank/CA/scripts/build_controls.py --check
+   ```
+3. **Add `CA/harness/skeleton/test/TrackASanity.t.sol`** — a concrete
+   `forge test` that, for each MUST_FAIL control, etches it, zero-seeds, pranks a
+   concrete attacker and asserts the state/value DID move; for each MUST_PASS
+   control, asserts it did NOT. This pins the controls BEFORE the symbolic CI gate
+   (this is the biggest quality upgrade vs stage1/2/3, which never verified
+   controls concretely). Run `forge test --match-contract TrackASanity -vv`.
+4. **Rewrite the generators for the `ProbeBaseA` API** and add a **full-sweep
+   generator** that reads `CA/data/stages/a<stage>_*_targets.json` and emits
+   `harness/stages/tracka_<class>/Stage…Chunk_<n>.sol` + `chunk_<n>.tests` +
+   `manifest.json` (chunk 0 = the v2 controls; targets chunked by size class like
+   `gen_stage.chunk_targets`). Do NOT require the DuckDB: the target JSONs already
+   carry `hash`/`ops`/`deployments`/`addresses`; embed the bytecode via
+   `CA/data/bytecodes_sel.parquet` if present, else via `--from-manifest` style.
+5. **Update `tracka-batch{1,2,3}.yml`** to a real full sweep (or add
+   `tracka-a1.yml … tracka-a9.yml` callers) and make `stage-matrix.yml`
+   verdict-classify **CHEATCODE FP / ABORT** explicitly, not only timeout.
+6. **Extend `resume-watchdog.yml`** to (a) include every new Track A caller, and
+   (b) add **stuck-run detection**: a run left `in_progress` beyond the job cap
+   with no active jobs → cancel + resume. Verify the
+   progress/runaway guards still hold.
+7. **Commit + push to `kingmariano`** (Track A repo `sanctracka` /
+   `kontrol-sanity-tracka`, and any new repo). Include: `ProbeBaseA.sol`,
+   regenerated `harness/controls/*.hex`, `build_controls.py`, the sanity test,
+   the generator(s), updated workflows, and an updated `CA/TRACK_A_PROPERTIES.md`
+   "where we are" note.
+8. **Run the sanity gate in CI** (`gh workflow run tracka-batch1.yml -f mode=sanity`)
+   and confirm: `VulnerableInit` FAIL / `SafeInit` PASS (+ the other A-pairs)
+   BEFORE firing any full matrix. Then fire the full sweep per class.
+9. Only after a FAIL is harvested: run the offline live-gate
+   (`triage_live.py`) — **read the real guard slot with `eth_getStorageAt`
+   before any "funds at risk" claim** (the F9 lesson: proofs run with storage
+   zeroed/symbolic).
+
+---
+
+## 8. QUICK COMMANDS / FACTS
+
 ```bash
-GK=$(grep '^GITHUB_API_KEY=' CA/.env | cut -d= -f2- | tr -d '"')
-curl -s -H "Authorization: Bearer $GK" \
-  "https://api.github.com/repos/kingmariano/<repo>/actions/runs?per_page=5"
-# artifacts: .../actions/runs/<id>/artifacts ; download zip via
-# .../actions/artifacts/<artifact_id>/zip ; verdicts are inside probe/verdicts_*.txt
+# git
+cd /workspaces/codespaces-blank
+git status -sb && git remote -v
+# forge (local, allowed)
+cd CA/harness/skeleton && forge build && forge test -vv
+# controls
+python3 CA/scripts/build_controls.py [--check]
+# CI
+gh workflow run tracka-batch1.yml -f mode=sanity
+gh run list --workflow=tracka-batch1.yml -L 5
+gh run download <run-id> -n stage<stage>-results-chunk-<n> -D /tmp/art
+# watchdog (manual, dry)
+gh workflow run resume-watchdog.yml -f dry_run=true
 ```
-Artifact naming: stage1 `probe-results-chunk-N`, stage2 `stage2-results-chunk-N`,
-f4 `f4-reproof-<variant>` + `f4-kcfg-<variant>`.
-**Stage 2 rerun is now POSTed** (`rerun-failed-jobs`, HTTP 201, queued) for its 15
-cancelled chunks. Poll it; when it lands, harvest FAILED verdicts.
-Watch for more FAILED chunks (F9 was found this way — chunk 38, test_p4_w39) —
-**but before calling any balance-drain a live risk, read the real guard slot(s)
-via `eth_getStorageAt`** (F9 lesson: the proof ran with storage zeroed).
-
-### F4 re-proof decision matrix (when run 34639568835 lands)
-- FAILED with model on p4/p1/p7 → F4 = CONFIRMED, drain calldata in hand → escalate.
-- shallow PASSED where default crashed → depth-induced crash → F4 downgraded.
-- CONTROL (VulnerableTransient) must FAIL, else run void.
-- All INCOMPLETE/kore-crash again → next escalation: concrete-signature etch
-  (fix sig bytes to attacker-signed valid sig, prove rest symbolically) or
-  split into P1 slot-writability + P7 balance-drain claims.
+- Kontrol image: `runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255`.
+- Local toolchain: `forge 1.8.1`, `solc 0.8.24` (pinned), 441 artifacts in
+  `CA/harness/skeleton/out`.
+- Control runtime-bytecode extraction: `out/<file>.sol/<Name>.json` →
+  `deployedBytecode.object` (strip `0x`).
+- Proof dirs contain `:` → tar before upload.
+- ETH ≈ $4,700/ETH assumed in older estimates.
 
 ---
 
-## 6. USER'S STATED PLAN / DIRECTIVES (chronological)
+## 9. WHAT "DONE" LOOKS LIKE FOR TRACK A
 
-1. ✅ Full-census balance triage with API keys (done for F4–F8, F9).
-2. ✅ F4 kore-crash re-proof in a **new public repo CI** (done — run live).
-3. ✅ F8 kept as-is (proof already clean; no rework).
-4. ✅ Bug breakdowns of F4/F8 written (`CA/BREAKDOWN_F4_F8.md`).
-5. ✅ Poll Stage 1 + Stage 2 → harvested → **found F9**.
-6. ✅ **DONE: Foundry PoC built at `CA/poc/`** — but the honest result is that
-   the 7.787 ETH is **NOT drainable**: all funded instances have slot5=1 and the
-   payout is slot2. See §3 and `FINDING_9_S2-38.md`. **The "drain to attacker"
-   objective is not achievable; do not pursue it further.**
-7. ✅ F9 question resolved from live storage (no Dedaub needed): slot0=owner
-   contract, slot2=third-party recipient, slot5=1 gate. **Next: apply the same
-   guard-slot check to F4/F6/F7/F8 before any live-funds claim.**
-8. **Wave 2 (P1b/P2b value-write-sensitive properties) fires when Wave 1
-   completes** — add `--wave` flag to `CA/scripts/gen_probe.py` (user-confirmed directive).
-9. Stage 2.5: selector-DB interface recovery (4byte.directory) for calldata shaping.
-10. Policy: everything runs in CI public repos; every batch/findings/census is
-    committed to ALL THREE remotes (`origin`=kingmariano/zany-xylophone
-    control tower, `sweep`=kontrol-stage1-sweep, `stage2`=kontrol-stage2-deepauth, main).
-11. User likes per-step verification ("make sure everything is working end to
-    end") and frequent rich status tables.
+- Green concrete `forge test` for every control pair.
+- Green CI **sanity** run per stage (chunk 0 controls hold).
+- Full matrices generated from `a<stage>_*_targets.json` and firing in CI.
+- Watchdog keeps them self-healing (resume + stuck-run cancel).
+- Every verdict classified PASS / FAIL / CHEATCODE-FP / ABORT / INCOMPLETE.
+- Any FAIL triaged with the live gate (guard-slot read + `eth_getCode`) before
+  being called a finding.
+- Everything committed to `kingmariano`.
 
----
-
-## 7. REPO / FILE MAP
-
-- Control tower: `/workspaces/codespaces-blank/CA/` (all remotes share history)
-- Docs: DATASET.md, KONTROL.md, KONTROL_SETUP.md, STAGES.md, ZERO_DAY_RESEARCH.md,
-  FINDINGS_HARVEST.md (ledger + F9), FINDINGS_BATCH1.md, FINDING_2_c1_1.md,
-  FINDING_3_c0_2.md, BREAKDOWN_F4_F8.md, CENSUS_LIVE_FUNDS.md, RADAR.md (data/)
-- Harness: `CA/harness/skeleton/` (foundry+kontrol project; single source of
-  truth for control Solidity + `ProbeBase.sol`), `CA/harness/controls/*.hex`
-  (compiled control runtime bytecode), `CA/harness/stages/stage{1,2,3}/`
-  (generated chunks + `chunk_*.tests` + `manifest.json`)
-- Generators/tools: `CA/scripts/gen_stage.py` (unified per-stage target
-  generator; SINGLE/TWO_PHASE/PROXY/MULTI templates), `opcode_scan.py`
-  (metadata-stripped radar), `triage_live.py` (offline live-gate),
-  `hf_sync.py` (HF dataset sync), `import_features.py`, `export_radar.py`,
-  `ingest.py`+`finalize.py` (rebuild DB; finalize handles a known NULL-hash
-  assert), `recover.sh` (idempotent recovery — run first after any /tmp wipe)
-- Local DB: `/tmp/eth-contracts/eth_contracts.duckdb` (23.6GB; reproducible;
-  tables contracts/bytecodes/opcode_features; bytecodes PK = `bytecode_hash`,
-  code column = `bytecode`)
-- Workflows: `.github/workflows/stage-matrix.yml` (reusable, `mode: sanity|full`)
-  + callers `stage1-cheap.yml`, `stage2-deepauth.yml`, `stage3-math.yml`
-- Repos: `origin`=zany-xylophone (control tower), `sweep`=kontrol-stage1-sweep,
-  `stage2`=kontrol-stage2-deepauth, `san{1,2,3}`=throwaway sanity clones
-  (same tree pushed to each; caller runs from that repo)
-
-## 8. QUICK FACTS FOR ORIENTATION
-
-- Git pushes work via credential helper even when GITHUB_API_KEY is stale.
-- Kontrol docker mount pattern: `-v "$PWD":/work/probe -w /work/probe` + chmod dance.
-- Bytecode → disassembly: use the inline Python EVM disassembler pattern from
-  this session (push-aware, handles PUSH0 as UNK on old image) — or Dedaub.
-- F9 selector→handler map + owner-gate semantics are in §3; slot map:
-  0=owner, 1=uint(getter 0x05b34410), 2=recipient-A, 3=recipient-B,
-  4=uint threshold/counter, 5=claimed-flag(&0xff).
-- ETH ≈ $4,700/ETH assumed in estimates.
-
-## 9. LIVE-GATE RE-CHECK (2026-09-11, after the F9 correction)
-
-Full write-up: **`CA/LIVE_GATE_RECHECK.md`**. Result: **no live-exploitable
-permissionless drain in F4–F9.**
-
-| Family | Guard | Funded | Live guard state | Verdict |
-|---|---|---|---|---|
-| F4 proxy | `slot0==0` to `initialize` | 873 | **873/873 `slot0!=0`** | rejected |
-| F5 `setSpender` | `CALLER==0x65b0bf8e…` (hardcoded) | 2 dust | gate constant | rejected |
-| F6 | — | 0 | — | dormant |
-| F7 `flush()` | none (pays fixed `destinationAddress()`) | 0 | — | dormant |
-| F8 `init` | `slot1==0` | 9 | **8/8 code-bearing `slot1!=0`; 9th codeless** | rejected |
-| F9 `sweep` | `slot5&0xff==0` | 194 | **194/194 `slot5=1`** | rejected |
-
-PoC: `CA/poc/` (8/8 tests pass with `MAINNET_RPC_URL`). New methodology rules:
-(1) read the real guard slot before any "funds at risk" claim; (2) `eth_getCode`
-each funded address (codeless census entries exist — F8 `0xd1c68218`); (3) the
-`sig_transient` radar is contaminated by solc metadata trailers (`0x5c/0x5d` in
-`a165627a7a…`/`a26469706673…`) — strip metadata before re-scanning Stage 2;
-(4) hardcoded-address gates (F5) are P1 false positives.
-
-— end of handoff —
+— end of handoff (Track A) —

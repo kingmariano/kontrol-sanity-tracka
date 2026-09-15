@@ -1,0 +1,42 @@
+# Track A — A6 fee-on-transfer / manipulable accounting.
+name: tracka-a6
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'sanity (controls only) | full'
+        required: false
+        default: 'sanity'
+        type: choice
+        options: [sanity, full]
+      chunks:
+        description: 'chunk indices (comma-separated); empty = manifest'
+        required: false
+        default: ''
+        type: string
+      wave:
+        description: 'wave index (full mode, when chunk count > wave_size)'
+        required: false
+        default: ''
+        type: string
+      src_run_id:
+        description: 'tracka-generate run id holding tracka-src (full mode)'
+        required: false
+        default: ''
+        type: string
+      resume_run_id:
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  run:
+    uses: ./.github/workflows/stage-matrix.yml
+    with:
+      stage: 'tracka_a6'
+      mode: ${{ inputs.mode }}
+      chunks: ${{ inputs.chunks }}
+      wave: ${{ inputs.wave }}
+      src_run_id: ${{ inputs.src_run_id }}
+      resume_run_id: ${{ inputs.resume_run_id }}

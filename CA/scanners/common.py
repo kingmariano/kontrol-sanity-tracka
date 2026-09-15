@@ -302,10 +302,21 @@ def _dep_table(con):
             "GROUP BY bytecode_hash)")
 
 
-def run_stage(stage_id, predicate, limit=40, note=""):
+def run_stage(stage_id, predicate, limit=200, note=""):
     """predicate: SQL over table alias `f` (features) e.g.
-       "f.c_sstore>0 AND contains(f.disp_sel,'8129fc1c')"
-    Writes data/stages/<id>.parquet, <id>_targets.json and prints stats."""
+       "f.c_sstore>0 AND contains(f.disp_sel,'8129fc1c')".
+
+    Writes:
+      data/stages/<id>.parquet        -- the FULL match (the authoritative source
+                                         the CI generator consumes; no contract is
+                                         left out)
+      data/stages/<id>_targets.json   -- a bounded, deployment-ranked SAMPLE (the
+                                         `limit` top targets) with address samples,
+                                         for offline triage only
+
+    The full parquet is the ground truth for the sweep; the JSON sample must never
+    be treated as the target universe.
+    """
     con = duckdb.connect(DB, read_only=True)
     con.execute("SET memory_limit='6GB'")
     con.execute("SET threads=4")
@@ -332,6 +343,7 @@ def run_stage(stage_id, predicate, limit=40, note=""):
     man = {"stage": stage_id, "note": note,
            "matched_bytecodes": int(len(df)),
            "matched_deployments": int(df["deploys"].sum()),
+           "json_sample_limit": int(limit),
            "targets": targets}
     with open(os.path.join(STAGES, f"{stage_id}_targets.json"), "w") as f:
         json.dump(man, f, indent=1)

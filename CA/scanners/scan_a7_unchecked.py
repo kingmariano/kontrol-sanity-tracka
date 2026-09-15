@@ -22,5 +22,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a7_unchecked", predicate(), limit=40,
+    common.run_stage("a7_unchecked", predicate(), limit=200,
                      note="Unchecked external call / calldata-derived call target (Track A P2)")

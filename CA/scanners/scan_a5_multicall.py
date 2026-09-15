@@ -20,5 +20,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a5_multicall", predicate(), limit=40,
+    common.run_stage("a5_multicall", predicate(), limit=200,
                      note="Multicall / batch msg.value reuse (Track A P1, needs VALUE template)")

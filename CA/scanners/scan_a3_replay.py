@@ -24,5 +24,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a3_replay", predicate(), limit=40,
+    common.run_stage("a3_replay", predicate(), limit=200,
                      note="Permit/signature replay candidates (needs signer template before mass proof)")

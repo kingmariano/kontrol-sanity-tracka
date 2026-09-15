@@ -32,5 +32,5 @@ def predicate():
 
 
 if __name__ == "__main__":
-    common.run_stage("a4_roundtrip", predicate(), limit=40,
+    common.run_stage("a4_roundtrip", predicate(), limit=200,
                      note="Rounding / round-trip value conservation, near-empty vault (Track A P1)")
