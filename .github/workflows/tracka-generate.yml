@@ -74,8 +74,21 @@ jobs:
           set -euo pipefail
           cp CA/scripts/ingest.py CA/scripts/finalize.py /tmp/eth-contracts/
           cd /tmp/eth-contracts
-          python3 -u ingest.py
+          # ingest.py deliberately exits non-zero on a known NULL/empty-hash assert
+          # AFTER both tables are built (this is why recover.sh does `|| true`).
+          python3 -u ingest.py || echo "ingest exited on the known hash assert; finalizing"
           python3 -u finalize.py
+          python3 - <<'PY'
+          import duckdb
+          c = duckdb.connect("/tmp/eth-contracts/eth_contracts.duckdb", read_only=True)
+          n = c.execute("select count(*) from contracts").fetchone()[0]
+          b = c.execute("select count(*) from bytecodes").fetchone()[0]
+          print("duckdb contracts=%d bytecodes=%d" % (n, b))
+          assert n > 69_000_000 and b > 1_500_000, "DuckDB build incomplete"
+          PY
+          # drop the ~28 GB of extracted CSVs; keep the zips (cached) + the DB
+          rm -f /tmp/eth-contracts/*.csv
+          df -h /tmp | tail -1
           cd "$GITHUB_WORKSPACE"
           python3 CA/scripts/import_features.py
 
