@@ -19,7 +19,9 @@ TC=/tmp/eth-contracts
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git curl ca-certificates; }
 pip install --quiet duckdb pandas pyarrow numpy pycryptodome huggingface_hub
 
-cd /work
+WORK="${WORK:-/tmp/work}"
+mkdir -p "$WORK"
+cd "$WORK"
 rm -rf repo
 git clone --depth 1 "$REPO" repo
 cd repo/CA
@@ -42,7 +44,7 @@ rm -f "$TC"/*.csv
 ls -la "$TC/eth_contracts.duckdb"
 df -h "$TC" | tail -1
 
-cd /work/repo/CA
+cd "$WORK/repo/CA"
 export CA_PARQUET_DIR="$TC/stages"
 CORES="${CPU_CORES:-8}"
 SHARDS=$(( CORES / 2 )); [ "$SHARDS" -lt 1 ] && SHARDS=1; [ "$SHARDS" -gt 16 ] && SHARDS=16
