@@ -53,7 +53,7 @@ for i in $(seq 0 $((SHARDS - 1))); do
   python3 -u scanners/common.py --build --shards "$SHARDS" --shard "$i" > "$TC/feat$i.log" 2>&1 &
 done
 wait
-tail -1 "$TC"/feat*.log || true
+for f in "$TC"/feat*.log; do tail -n 1 "$f" || true; done
 python3 scanners/common.py --merge "$SHARDS"
 
 echo "[prepare] scanning Track A classes (full match)"
@@ -65,12 +65,15 @@ echo "[prepare] compact matched-bytecodes parquet"
 python3 hf/build_bytecodes_parquet.py
 
 echo "[prepare] publishing to /out"
+ART="$TC/stages"
+[ -f "$ART/features_ext.parquet" ] || ART="$PWD/data/stages"
+echo "[prepare] artifacts dir: $ART"
 mkdir -p /out
-cp "$TC/stages/features_ext.parquet" /out/
+cp "$ART/features_ext.parquet" /out/
 for s in a1_init a2_upgrade a5_multicall a6_fee a7_unchecked a9_unauth_pull; do
-  cp "$TC/stages/$s.parquet" /out/
+  cp "$ART/$s.parquet" /out/
 done
-cp "$TC/stages/tracka_bytecodes.parquet" /out/
+cp "$ART/tracka_bytecodes.parquet" /out/
 cp data/stages/a1_init_targets.json data/stages/a2_upgrade_targets.json \
    data/stages/a5_multicall_targets.json data/stages/a6_fee_targets.json \
    data/stages/a7_unchecked_targets.json data/stages/a9_unauth_pull_targets.json /out/ 2>/dev/null || true

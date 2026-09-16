@@ -35,9 +35,14 @@ except Exception:  # pragma: no cover
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB = "/tmp/eth-contracts/eth_contracts.duckdb"
 STAGES = os.path.join(ROOT, "data", "stages")
-FEAT = os.path.join(STAGES, "features_ext.parquet")
+# Big derived parquets (features_ext, per-scanner full matches) default to the
+# committed data dir, but are redirected with CA_PARQUET_DIR so a one-off
+# full-universe build never fills the small persistent workspace (use /tmp).
+PARQ = os.environ.get("CA_PARQUET_DIR", STAGES)
+FEAT = os.path.join(PARQ, "features_ext.parquet")
 ADDR_CAP = 500
 os.makedirs(STAGES, exist_ok=True)
+os.makedirs(PARQ, exist_ok=True)
 
 PUSH_LUT = np.zeros(256, dtype=np.int64)
 PUSH_LUT[0x60:0x80] = np.arange(1, 33)
@@ -327,7 +332,7 @@ def run_stage(stage_id, predicate, limit=200, note=""):
         WHERE {predicate}
     """
     df = con.execute(q).fetchdf()
-    out = os.path.join(STAGES, f"{stage_id}.parquet")
+    out = os.path.join(PARQ, f"{stage_id}.parquet")
     df.to_parquet(out, index=False)
     # top-N targets by deployments, with a bounded address sample each
     top = df.sort_values("deploys", ascending=False).head(limit)

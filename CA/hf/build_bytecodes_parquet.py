@@ -10,6 +10,9 @@ import duckdb
 
 DB = "/tmp/eth-contracts/eth_contracts.duckdb"
 STAGES = os.environ.get("CA_PARQUET_DIR", "/tmp/eth-contracts/stages")
+if not os.path.exists(os.path.join(STAGES, "a1_init.parquet")) \
+        and os.path.exists("data/stages/a1_init.parquet"):
+    STAGES = os.path.abspath("data/stages")
 SCANNERS = ["a1_init", "a2_upgrade", "a5_multicall", "a6_fee",
             "a7_unchecked", "a9_unauth_pull"]
 

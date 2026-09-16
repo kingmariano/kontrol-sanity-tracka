@@ -278,13 +278,15 @@ def bytecode_source(args):
     return fetch
 
 
-def write_stage(stage, chunks):
+def write_stage(stage, chunks, outroot=None):
     """chunks: list of (chunk_index, body, tests, class_label, targets).
 
-    Output dir follows the CI convention: `harness/stages/stage<stage>/` with
-    files `Stage<stage>Chunk_<n>.sol` (so `stage: tracka_a1` -> `stagetracka_a1/`).
+    Output dir follows the CI convention: `<outroot>/stage<stage>/` with files
+    `Stage<stage>Chunk_<n>.sol` (so `stage: tracka_a1` -> `stagetracka_a1/`).
+    `outroot` defaults to harness/stages but is redirected (e.g. to /tmp) for the
+    one-off full-universe build so the workspace does not fill.
     """
-    outdir = os.path.join(OUTROOT, "stage" + stage)
+    outdir = os.path.join(outroot or OUTROOT, "stage" + stage)
     os.makedirs(outdir, exist_ok=True)
     for f in os.listdir(outdir):
         if f.startswith("Stage") or f.startswith("chunk_") or f == "manifest.json":
@@ -316,6 +318,7 @@ def main():
     ap.add_argument("--bytecodes-parquet", default=None)
     ap.add_argument("--limit", type=int, default=0, help="cap targets (0 = all)")
     ap.add_argument("--stage", default=None, help="override stage id (default tracka_<cls>)")
+    ap.add_argument("--out", default=None, help="output root (default CA/harness/stages)")
     args = ap.parse_args()
 
     cls = args.cls
@@ -357,7 +360,7 @@ def main():
         print(f"[{stage}] targets={len(targets)} chunks={len(chunks)-1} missing_bytecode={missing}",
               flush=True)
 
-    write_stage(stage, chunks)
+    write_stage(stage, chunks, args.out)
 
 
 if __name__ == "__main__":
