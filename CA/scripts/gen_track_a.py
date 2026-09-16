@@ -366,6 +366,11 @@ def main():
     cmodels = [m.strip() for m in args.control_models.split(",") if m.strip()]
     cls = args.cls
     scanner, template, (vuln, safe) = CLASSES[cls]
+    # VALUE (A5) and PULL (A9) are scoped value/conservation checks: seeding the
+    # target's accounting storage with arbitrary values makes legitimate controls
+    # "lose" funds (an FP, not a bug), so these templates always run ZEROED.
+    if template in ("PULL", "VALUE"):
+        models, cmodels = ["zeroed"], ["zeroed"]
     stage = args.stage or f"tracka_{cls}"
     base = BASE[cls]
 
