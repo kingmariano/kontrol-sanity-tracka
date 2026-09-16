@@ -28,11 +28,18 @@ cd repo/CA
 
 mkdir -p "$TC/stages"
 base=https://huggingface.co/datasets/Zellic/all-ethereum-contracts/resolve/main
+fetch() {  # url out expected_bytes
+  local url="$1" out="$2" want="$3" a
+  for a in 1 2 3 4 5 6; do
+    curl -fL --retry 3 --retry-delay 5 --retry-all-errors -C - -o "$out" "$url" || true
+    [ -f "$out" ] && [ "$(stat -c%s "$out")" = "$want" ] && return 0
+    echo "[prepare] download retry $a for $out ($(stat -c%s "$out" 2>/dev/null || echo 0)/$want)"; sleep 10
+  done
+  return 1
+}
 echo "[prepare] downloading Zellic zips"
-curl -fsSL -o "$TC/contracts.zip" "$base/contracts.zip"
-curl -fsSL -o "$TC/bytecodes.zip" "$base/bytecodes.zip"
-test "$(stat -c%s "$TC/contracts.zip")" = "2251610719"
-test "$(stat -c%s "$TC/bytecodes.zip")" = "4139739279"
+fetch "$base/contracts.zip" "$TC/contracts.zip" 2251610719
+fetch "$base/bytecodes.zip" "$TC/bytecodes.zip" 4139739279
 df -h "$TC" | tail -1
 
 cp scripts/ingest.py scripts/finalize.py "$TC/"
