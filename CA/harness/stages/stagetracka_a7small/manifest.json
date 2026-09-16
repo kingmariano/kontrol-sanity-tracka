@@ -1,0 +1,80 @@
+{
+ "stage": "tracka_a7small",
+ "chunks": [
+  {
+   "chunk": 0,
+   "class": "CONTROLS",
+   "tests": [
+    "test_a7_c0_0_z",
+    "test_a7_c0_0_s",
+    "test_a7_c0_1_z",
+    "test_a7_c0_1_s"
+   ],
+   "targets": []
+  },
+  {
+   "chunk": 1,
+   "class": "a7_unchecked",
+   "tests": [
+    "test_a7_c1_0_z",
+    "test_a7_c1_0_s",
+    "test_a7_c1_1_z",
+    "test_a7_c1_1_s"
+   ],
+   "targets": [
+    {
+     "hash": "0x8cd5a574bdc50bd5534d139d3c04ceb0ba942c000c54f25b43800ddec9e58d67",
+     "n_ops": 26,
+     "deploys": 3,
+     "idx": 0
+    },
+    {
+     "hash": "0xed52d10638055876d13f77a0ec244ed13f37d33faec35559d8530ed958305567",
+     "n_ops": 25,
+     "deploys": 2,
+     "idx": 1
+    }
+   ]
+  },
+  {
+   "chunk": 2,
+   "class": "a7_unchecked",
+   "tests": [
+    "test_a7_c2_0_z",
+    "test_a7_c2_0_s",
+    "test_a7_c2_1_z",
+    "test_a7_c2_1_s"
+   ],
+   "targets": [
+    {
+     "hash": "0xdb96ded93727f9d9877cc39b215ba6e2f753313cb09082aac2132131f5f88556",
+     "n_ops": 27,
+     "deploys": 2,
+     "idx": 0
+    },
+    {
+     "hash": "0xdaa551bdb6ba8f9c79bb9c7a4f78470c74b630ee6f1622d6dfb41118edb1736c",
+     "n_ops": 25,
+     "deploys": 1,
+     "idx": 1
+    }
+   ]
+  },
+  {
+   "chunk": 3,
+   "class": "a7_unchecked",
+   "tests": [
+    "test_a7_c3_0_z",
+    "test_a7_c3_0_s"
+   ],
+   "targets": [
+    {
+     "hash": "0xbf0c6e73839704acd2f2988f2b342b2d4f13eed788a8b640c45914be30a61dee",
+     "n_ops": 26,
+     "deploys": 1,
+     "idx": 0
+    }
+   ]
+  }
+ ]
+}
