@@ -184,6 +184,8 @@ jobs:
               echo "=== $t $verdict (prop: $prop) ===" >> "$V"
             elif [ "$rc" -eq 124 ]; then
               echo "=== $t INCOMPLETE (wall-timeout; kcfg checkpointed) ===" >> "$V"
+            elif grep -qE 'Test identifiers not found' /tmp/prove_one.log; then
+              echo "=== $t BROKEN (test name absent from project; generator/tests mismatch) ===" >> "$V"
             elif grep -qE 'FoundryCheat|#address\( FoundryCheat' /tmp/prove_one.log; then
               # symbolic-address/cheatcode artifact, NOT a finding (see CA/kontrol 08.4)
               echo "=== $t INCOMPLETE (CHEATCODE-FP; kcfg checkpointed) ===" >> "$V"

@@ -46,6 +46,8 @@ while IFS= read -r t; do
     verdict=$(grep -E 'PROOF (PASSED|FAILED)' "$WORK/one.log" | head -1)
     prop=$(grep -oE 'P_[A-Z_]+' "$WORK/one.log" | sort -u | head -3 | tr '\n' ',')
     echo "=== $t $verdict (prop: $prop) ===" >> "$V"
+  elif grep -qE 'Test identifiers not found' "$WORK/one.log"; then
+    echo "=== $t BROKEN (test name absent from project) ===" >> "$V"
   else
     echo "=== $t INCOMPLETE (rc; see log) ===" >> "$V"
   fi

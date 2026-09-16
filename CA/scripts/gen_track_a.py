@@ -230,7 +230,7 @@ def emit_probes(cls, chunk, items, base, models, sel_cap):
                 mconst, suffix = MODEL_CONST[m]
                 block += TESTS[template].substitute(
                     cls=cls, chunk=chunk, i=i, sel=s, suffix=suffix, model=mconst) + "\n\n"
-                tests.append(f"test_{cls}_c{chunk}_{i}_{s}{suffix}")
+                tests.append(f"test_{cls}_c{chunk}_{i}_{s}_{suffix}")
         probes.append(block)
     body = BODIES[template].substitute(base=f"{base:x}", probes="".join(probes))
     return body, tests, skipped
@@ -317,6 +317,7 @@ def bytecode_source(args):
 
 
 def write_stage(stage, chunks, outroot=None):
+    import re
     outdir = os.path.join(outroot or OUTROOT, "stage" + stage)
     os.makedirs(outdir, exist_ok=True)
     for f in os.listdir(outdir):
@@ -325,6 +326,14 @@ def write_stage(stage, chunks, outroot=None):
     manifest = {"stage": stage, "chunks": []}
     for ci, body, tests, cls, targets in chunks:
         src = HDR.substitute(stage=stage, chunk=ci, cls=cls, body=body)
+        # hard self-check: the .tests list MUST equal the compiled test functions,
+        # else `kontrol prove --match-test` silently reports "identifiers not found".
+        in_sol = set(re.findall(r"function (test_[A-Za-z0-9_]+)\(", src))
+        want = set(tests)
+        if in_sol != want:
+            raise SystemExit(
+                f"[{stage} c{ci}] test-name mismatch: "
+                f"missing_in_sol={sorted(want - in_sol)} extra_in_sol={sorted(in_sol - want)}")
         with open(os.path.join(outdir, f"Stage{stage}Chunk_{ci}.sol"), "w") as fh:
             fh.write(src)
         with open(os.path.join(outdir, f"chunk_{ci}.tests"), "w") as fh:

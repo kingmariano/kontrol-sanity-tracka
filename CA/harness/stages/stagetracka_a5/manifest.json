@@ -5,10 +5,10 @@
    "chunk": 0,
    "class": "CONTROLS",
    "tests": [
-    "test_a5_c0_0_c9d7f672z",
-    "test_a5_c0_0_c9d7f672e",
-    "test_a5_c0_1_c9d7f672z",
-    "test_a5_c0_1_c9d7f672e"
+    "test_a5_c0_0_c9d7f672_z",
+    "test_a5_c0_0_c9d7f672_e",
+    "test_a5_c0_1_c9d7f672_z",
+    "test_a5_c0_1_c9d7f672_e"
    ],
    "targets": []
   }
