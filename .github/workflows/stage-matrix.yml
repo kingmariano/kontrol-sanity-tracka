@@ -179,7 +179,9 @@ jobs:
             rc=$?
             cat /tmp/prove_one.log >> prove_output.log
             if grep -qE 'PROOF (PASSED|FAILED)' /tmp/prove_one.log; then
-              grep -E 'PROOF (PASSED|FAILED)' /tmp/prove_one.log >> "$V"
+              verdict=$(grep -E 'PROOF (PASSED|FAILED)' /tmp/prove_one.log | head -1)
+              prop=$(grep -oE 'P_[A-Z_]+' /tmp/prove_one.log | sort -u | head -3 | tr '\n' ',')
+              echo "=== $t $verdict (prop: $prop) ===" >> "$V"
             elif [ "$rc" -eq 124 ]; then
               echo "=== $t INCOMPLETE (wall-timeout; kcfg checkpointed) ===" >> "$V"
             elif grep -qE 'FoundryCheat|#address\( FoundryCheat' /tmp/prove_one.log; then

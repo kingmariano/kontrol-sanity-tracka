@@ -43,7 +43,9 @@ while IFS= read -r t; do
   timeout -k 30s "${BUDGET_SECS:-1500}s" kontrol prove --match-test "$t" $PROVE_OPTS \
       > "$WORK/one.log" 2>&1 || true
   if grep -qE 'PROOF (PASSED|FAILED)' "$WORK/one.log"; then
-    grep -E 'PROOF (PASSED|FAILED)' "$WORK/one.log" >> "$V"
+    verdict=$(grep -E 'PROOF (PASSED|FAILED)' "$WORK/one.log" | head -1)
+    prop=$(grep -oE 'P_[A-Z_]+' "$WORK/one.log" | sort -u | head -3 | tr '\n' ',')
+    echo "=== $t $verdict (prop: $prop) ===" >> "$V"
   else
     echo "=== $t INCOMPLETE (rc; see log) ===" >> "$V"
   fi

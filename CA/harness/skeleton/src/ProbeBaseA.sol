@@ -4,27 +4,24 @@ pragma solidity ^0.8.13;
 import {Test} from "forge-std/Test.sol";
 import {ConsentToken} from "./ConsentToken.sol";
 
-/// @notice Track A shared harness (v2).
+/// @notice Track A shared harness (v3) — hardened for FN/FP coverage.
 ///
-/// Deliberate fixes over the stage1/2/3 `ProbeBase` (see CA/kontrol):
-///  * **Token observation is keccak-free.** We etch `ConsentToken` at the four
-///    canonical token addresses and watch its *fixed* slots (transferCount,
-///    lastFrom, lastTo) instead of `balanceOf` mappings. Symbolic-keccak reads
-///    are what blew up the old suites; fixed slots keep the proofs small while
-///    still detecting any transfer/transferFrom the target performs.
-///  * **Selectable state model.** `_seedZeroed` (fast, comparable with stages
-///    1-3) or `_seedSymbolic` (`setArbitraryStorage`). The symbolic model closes
-///    the "favourable zero state" false negative: a write that stores zero, or a
-///    guard that only holds because a slot is zero, no longer hides the path.
-///  * **Attacker assumptions are centralised** (`_assumeAttacker`) so every probe
-///    kills the 3-way symbolic-address branching (file 08.5) identically.
-///  * **Goal shape.** `P_ATTACKER_PROFIT` (ETH) and `P_BALANCE_LOST` (target ETH)
-///    are asserted in every probe, not just slot diffs.
-///  * **Honesty.** `P_AUTH_WRITE` is only asserted under the ZEROED model: under
-///    symbolic storage an untouched slot is an unconstrained word, so
-///    `slot != attacker` would be satisfiable for the wrong reason (a false
-///    positive). `P_STORAGE_CHANGED` is sound in both models because it compares
-///    the same term before/after.
+/// v3 over v2:
+///  * **Proxy/impl slot coverage.** v2 watched slots 0..31 only, which MISSES
+///    the ERC-1967 implementation slot (0x3608…) and friends — i.e. the A2 class.
+///    v3 watches a 64-slot contiguous window PLUS the eight well-known proxy slots:
+///      ERC-1967 impl / admin / beacon (+ the un-subtracted impl slot, a real bug),
+///      EIP-1822 `PROXIABLE` (UUPS), OZ-zeppelinos impl/admin, Diamond storage.
+///  * **Three state models** (`_seed`):
+///      M_ZEROED     — all watched slots zero (fast; `P_AUTH_WRITE` valid).
+///      M_SEEDED     — each watched slot gets a fresh symbolic value; any write
+///                     (even a write of zero) changes the term => catches the
+///                     "favourable zero state" FN WITHOUT `setArbitraryStorage`
+///                     blowing up the whole storage (the reason v2's symbolic
+///                     model OOM'd on 16 GB).
+///      M_ARBITRARY  — `setArbitraryStorage` (fully sound, heaviest).
+///  * **Token observation** includes the consent token (index 4) so an outflow of
+///    the token the A9 controls actually call is caught.
 contract ProbeBaseA is Test {
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -33,52 +30,60 @@ contract ProbeBaseA is Test {
     address internal constant KONTROL_HEVM = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
     address internal constant KONTROL_CONSOLE = 0x000000000000000000636F6e736F6c652e6c6f67;
 
-    /// The address the A9/A4 value controls hardcode for the consent token. The
-    /// harness etches `ConsentToken` here in `setUp` so pre-built controls and the
-    /// ABI-agnostic probes observe the same instrument.
+    /// Address the A9/A4 value controls hardcode for the consent token.
     address internal constant CONSENT_TOKEN = 0x0000000000000000000000000000000000001111;
-
-    /// Role used by the MUST_PASS controls. The attacker domain excludes it, so
-    /// a correctly role-guarded contract can never be driven by the attacker.
     address internal constant ADMIN = address(0xA11CE);
 
-    /// Slots 0..NSLOTS-1 are snapshotted/compared. 32 covers the common
-    /// admin/implementation/accounting slots (stage 1-3 stopped at 15).
-    uint256 internal constant NSLOTS = 32;
+    // ---- watched slot space -------------------------------------------------
+    uint256 internal constant CONTIG = 64;
+    uint256 internal constant NAMED = 8;
+    uint256 internal constant NWATCH = CONTIG + NAMED;
 
-    // ConsentToken fixed layout (src/ConsentToken.sol).
+    uint8 internal constant M_ZEROED = 0;
+    uint8 internal constant M_SEEDED = 1;
+    uint8 internal constant M_ARBITRARY = 2;
+
+    // ConsentToken fixed layout.
     uint256 internal constant TK_TRANSFER_COUNT = 2;
     uint256 internal constant TK_LAST_FROM = 3;
     uint256 internal constant TK_LAST_TO = 4;
 
-    address[4] internal TOKENS;
-
-    // Per-token "before" snapshot of the three fixed slots. Index 4 is CONSENT_TOKEN.
+    address[5] internal TOKENS; // 4 canonical + consent token
     uint256[5] internal tkCount0;
     address[5] internal tkFrom0;
     address[5] internal tkTo0;
-
-    // Per-target slot snapshot.
-    bytes32[NSLOTS] internal slot0;
+    bytes32[NWATCH] internal slot0;
+    uint256 internal _bal0;
+    uint256 internal _atk0;
 
     function setUp() public virtual {
-        TOKENS = [USDC, WETH, USDT, DAI];
+        TOKENS = [USDC, WETH, USDT, DAI, CONSENT_TOKEN];
         ConsentToken ct = new ConsentToken();
         bytes memory code = address(ct).code;
-        for (uint256 i = 0; i < 4; ++i) {
+        for (uint256 i = 0; i < 5; ++i) {
             vm.etch(TOKENS[i], code);
             vm.store(TOKENS[i], bytes32(TK_TRANSFER_COUNT), bytes32(0));
             vm.store(TOKENS[i], bytes32(TK_LAST_FROM), bytes32(0));
             vm.store(TOKENS[i], bytes32(TK_LAST_TO), bytes32(0));
         }
-        vm.etch(CONSENT_TOKEN, code);
-        vm.store(CONSENT_TOKEN, bytes32(TK_TRANSFER_COUNT), bytes32(0));
-        vm.store(CONSENT_TOKEN, bytes32(TK_LAST_FROM), bytes32(0));
-        vm.store(CONSENT_TOKEN, bytes32(TK_LAST_TO), bytes32(0));
     }
 
-    /// @dev Seed a concrete victim's balance and its allowance to `target` inside
-    /// the etched `ConsentToken` (fixed layout: slot 0 balanceOf, slot 1 allowance).
+    /// @dev The k-th watched slot: 0..63 contiguous, then the well-known proxy /
+    /// implementation / admin slots. Hardcoded to avoid runtime keccak.
+    function _watched(uint256 k) internal pure returns (bytes32) {
+        if (k < CONTIG) return bytes32(k);
+        if (k == CONTIG + 0) return bytes32(uint256(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)); // eip1967 impl
+        if (k == CONTIG + 1) return bytes32(uint256(0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103)); // eip1967 admin
+        if (k == CONTIG + 2) return bytes32(uint256(0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50)); // eip1967 beacon
+        if (k == CONTIG + 3) return bytes32(uint256(0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7)); // PROXIABLE (UUPS)
+        if (k == CONTIG + 4) return bytes32(uint256(0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3)); // oz impl
+        if (k == CONTIG + 5) return bytes32(uint256(0x10d6a54a4754c8869d6886b5f5d7fbfa5b4522237ea5c60d11bc4e7a1ff9390b)); // oz admin
+        if (k == CONTIG + 6) return bytes32(uint256(0xc8fcad8db84d3cc18b4c41d551ea0ee66dd599cde068d998e57d5e09332c131c)); // diamond
+        if (k == CONTIG + 7) return bytes32(uint256(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbd)); // eip1967 impl (unsub)
+        revert("watched:oob");
+    }
+
+    /// @dev Seed a concrete victim's balance + allowance to `target`.
     function _seedVictim(address victim, address target, uint256 bal, uint256 allow) internal {
         vm.store(CONSENT_TOKEN, keccak256(abi.encode(victim, uint256(0))), bytes32(bal));
         bytes32 inner = keccak256(abi.encode(victim, uint256(1)));
@@ -86,8 +91,6 @@ contract ProbeBaseA is Test {
     }
 
     // ---------------------------------------------------------------- attacker
-    /// @dev Kill the 3-way symbolic-address branching and the cheatcode FPs.
-    /// `extra` lets a probe exclude extra addresses (victim, deployed mocks).
     function _assumeAttacker(address attacker, address target) internal view {
         vm.assume(attacker != address(0));
         vm.assume(uint256(uint160(attacker)) > 0xff);
@@ -97,10 +100,9 @@ contract ProbeBaseA is Test {
         vm.assume(attacker != address(vm));
         vm.assume(attacker != target);
         vm.assume(attacker != ADMIN);
-        for (uint256 i = 0; i < 4; ++i) vm.assume(attacker != TOKENS[i]);
+        for (uint256 i = 0; i < 5; ++i) vm.assume(attacker != TOKENS[i]);
     }
 
-    /// @dev Variant that also excludes a concrete victim (A9).
     function _assumeAttackerVictim(address attacker, address target, address victim)
         internal
         view
@@ -110,61 +112,72 @@ contract ProbeBaseA is Test {
         vm.assume(victim != address(0));
     }
 
-    // ------------------------------------------------------------- state model
-    /// @dev Fast model, comparable with stages 1-3. `P_AUTH_WRITE` is valid here.
+    // ------------------------------------------------------------- state models
     function _seedZeroed(address target) internal {
-        for (uint256 i = 0; i < NSLOTS; ++i) vm.store(target, bytes32(i), bytes32(0));
+        for (uint256 k = 0; k < NWATCH; ++k) vm.store(target, _watched(k), bytes32(0));
     }
 
-    /// @dev Sound model: every untouched slot is symbolic, so any write (even a
-    /// write of zero) changes the term and trips `P_STORAGE_CHANGED`. Under this
-    /// model we do NOT assert `P_AUTH_WRITE` (see contract docs).
-    function _seedSymbolic(address target) internal {
+    /// @dev Fresh symbolic value per watched slot. Cheaper than setArbitraryStorage
+    /// (which makes *all* storage, incl. keccak arrays, symbolic) while still
+    /// closing the zero-state FN for every slot we assert on.
+    function _seedSeeded(address target) internal {
+        for (uint256 k = 0; k < NWATCH; ++k) {
+            vm.store(target, _watched(k), bytes32(vm.randomUint()));
+        }
+    }
+
+    function _seedArbitrary(address target) internal {
         vm.setArbitraryStorage(target);
     }
 
+    function _seed(address target, uint8 model) internal {
+        if (model == M_ZEROED) _seedZeroed(target);
+        else if (model == M_SEEDED) _seedSeeded(target);
+        else _seedArbitrary(target);
+    }
+
     function _snapshotTarget(address target) internal {
-        for (uint256 i = 0; i < NSLOTS; ++i) slot0[i] = vm.load(target, bytes32(i));
+        for (uint256 k = 0; k < NWATCH; ++k) slot0[k] = vm.load(target, _watched(k));
     }
 
     function _snapshotTokens() internal {
-        for (uint256 i = 0; i < 4; ++i) {
+        for (uint256 i = 0; i < 5; ++i) {
             tkCount0[i] = uint256(vm.load(TOKENS[i], bytes32(TK_TRANSFER_COUNT)));
             tkFrom0[i] = address(uint160(uint256(vm.load(TOKENS[i], bytes32(TK_LAST_FROM)))));
             tkTo0[i] = address(uint160(uint256(vm.load(TOKENS[i], bytes32(TK_LAST_TO)))));
         }
-        tkCount0[4] = uint256(vm.load(CONSENT_TOKEN, bytes32(TK_TRANSFER_COUNT)));
-        tkFrom0[4] = address(uint160(uint256(vm.load(CONSENT_TOKEN, bytes32(TK_LAST_FROM)))));
-        tkTo0[4] = address(uint160(uint256(vm.load(CONSENT_TOKEN, bytes32(TK_LAST_TO)))));
+    }
+
+    function _markBalances(address target, address attacker) internal {
+        _bal0 = target.balance;
+        _atk0 = attacker.balance;
     }
 
     // ------------------------------------------------------------------ checks
-    /// @dev The real storage check, parameterised by target.
-    function _checkTarget(address target, address attacker, bool zeroedModel) internal view {
+    function _checkTarget(address target, address attacker, uint8 model) internal view {
         assertEq(target.balance, _bal0, "P_BALANCE_LOST");
         assertLe(attacker.balance, _atk0, "P_ATTACKER_PROFIT");
-        for (uint256 i = 0; i < NSLOTS; ++i) {
-            bytes32 cur = vm.load(target, bytes32(i));
-            assertEq(uint256(cur), uint256(slot0[i]), "P_STORAGE_CHANGED");
-            if (zeroedModel) {
+        for (uint256 k = 0; k < NWATCH; ++k) {
+            bytes32 cur = vm.load(target, _watched(k));
+            assertEq(uint256(cur), uint256(slot0[k]), "P_STORAGE_CHANGED");
+            if (model == M_ZEROED) {
                 assertTrue(cur != bytes32(uint256(uint160(attacker))), "P_AUTH_WRITE");
             }
         }
         _checkTokens(attacker);
     }
 
-    /// @dev Scoped check for value-carrying probes (A5): the target may
-    /// legitimately write accounting, so only ETH conservation is asserted.
+    /// @dev Scoped check for value-carrying probes (A5).
     function _checkValue(address target, address attacker) internal view {
         assertGe(target.balance, _bal0, "P_BALANCE_LOST");
         assertLe(attacker.balance, _atk0, "P_ATTACKER_PROFIT");
     }
 
-    /// @dev No token transfer/transferFrom happened, and nothing was routed to
-    /// the attacker. Keccak-free (fixed slots only).
+    /// @dev No token transfer/transferFrom happened and nothing was routed to the
+    /// attacker, across the 4 canonical tokens and the consent token.
     function _checkTokens(address attacker) internal view {
         bytes32 atk = bytes32(uint256(uint160(attacker)));
-        for (uint256 i = 0; i < 4; ++i) {
+        for (uint256 i = 0; i < 5; ++i) {
             assertEq(
                 uint256(vm.load(TOKENS[i], bytes32(TK_TRANSFER_COUNT))),
                 tkCount0[i],
@@ -177,9 +190,7 @@ contract ProbeBaseA is Test {
         }
     }
 
-    /// @dev A9: a concrete victim's tokens must not move (no transfer initiated
-    /// from the victim) and the victim must never become the consent token's
-    /// `lastFrom`. Observed on CONSENT_TOKEN itself (fixed slots, keccak-free).
+    /// @dev A9: the concrete victim's tokens must not move.
     function _checkVictim(address victim) internal view {
         bytes32 v = bytes32(uint256(uint160(victim)));
         assertTrue(
@@ -191,14 +202,5 @@ contract ProbeBaseA is Test {
             tkCount0[4],
             "P_TOKEN_OUTFLOW"
         );
-    }
-
-    // ------------------------------------------------------------- bookkeeping
-    uint256 internal _bal0;
-    uint256 internal _atk0;
-
-    function _markBalances(address target, address attacker) internal {
-        _bal0 = target.balance;
-        _atk0 = attacker.balance;
     }
 }

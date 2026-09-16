@@ -1,0 +1,40 @@
+{
+ "stage": "tracka_a7v4",
+ "chunks": [
+  {
+   "chunk": 0,
+   "class": "CONTROLS",
+   "tests": [
+    "test_a7_c0_0_c4076876z",
+    "test_a7_c0_0_c4076876e",
+    "test_a7_c0_1_c4076876z",
+    "test_a7_c0_1_c4076876e"
+   ],
+   "targets": []
+  },
+  {
+   "chunk": 1,
+   "class": "a7_unchecked",
+   "tests": [
+    "test_a7_c1_0_6ea056a9e",
+    "test_a7_c1_0_c0ee0b8ae",
+    "test_a7_c1_1_3ef13367e",
+    "test_a7_c1_1_6b9f96eae"
+   ],
+   "targets": [
+    {
+     "hash": "0xce33220d5c7f0d09d75ceff76c05863c5e7d6e801c70dfe7d5d45d4c44e80654",
+     "n_ops": 287,
+     "deploys": 1595657,
+     "idx": 0
+    },
+    {
+     "hash": "0x647d5d7eb5af6fbf9ed95320cadf658cec3819ffa536adc7b6387fdf1b72123d",
+     "n_ops": 534,
+     "deploys": 1543537,
+     "idx": 1
+    }
+   ]
+  }
+ ]
+}

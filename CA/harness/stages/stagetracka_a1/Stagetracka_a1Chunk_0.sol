@@ -8,36 +8,48 @@ contract Stagetracka_a1Chunk_0 is ProbeBaseA {
 
     function _probeSingle(
         bytes memory code, uint256 idx, bytes4 selector,
-        uint256 a0, uint256 a1, address attacker, bool zeroed
+        uint256 a0, uint256 a1, address attacker, uint8 model
     ) internal {
         address target = address(uint160(0x1000000 + idx));
         _assumeAttacker(attacker, target);
         vm.etch(target, code);
         vm.deal(target, 1 ether);
-        if (zeroed) { _seedZeroed(target); } else { _seedSymbolic(target); }
+        _seed(target, model);
         _snapshotTarget(target);
         _snapshotTokens();
         _markBalances(target, attacker);
         vm.prank(attacker);
         target.call(abi.encodeWithSelector(selector, a0, a1));
-        _checkTarget(target, attacker, zeroed);
+        _checkTarget(target, attacker, model);
     }
     // MUST_FAIL VulnerableInit
     function _code_0() internal pure returns (bytes memory) { return hex"608060405234801561000f575f80fd5b5060043610610034575f3560e01c80638da5cb5b14610038578063c4d66de814610056575b5f80fd5b610040610072565b60405161004d9190610116565b60405180910390f35b610070600480360381019061006b919061015d565b610095565b005b5f8054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b805f806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050565b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f610100826100d7565b9050919050565b610110816100f6565b82525050565b5f6020820190506101295f830184610107565b92915050565b5f80fd5b61013c816100f6565b8114610146575f80fd5b50565b5f8135905061015781610133565b92915050565b5f602082840312156101725761017161012f565b5b5f61017f84828501610149565b9150509291505056fea264697066735822122027fa723bd9115ad209b1b2f4cb9e3d37b04cefb70542da8dea6b98d31ff64ffe64736f6c63430008180033"; }
 
-    function test_a1_c0_0_z(
-        bytes4 selector, uint256 a0, uint256 a1, address attacker
+    function test_a1_c0_0_c4d66de8_z(
+        uint256 a0, uint256 a1, address attacker
     ) public {
-        _probeSingle(_code_0(), 0, selector, a0, a1, attacker, true);
+        _probeSingle(_code_0(), 0, bytes4(hex"c4d66de8"), a0, a1, attacker, M_ZEROED);
+    }
+
+    function test_a1_c0_0_c4d66de8_e(
+        uint256 a0, uint256 a1, address attacker
+    ) public {
+        _probeSingle(_code_0(), 0, bytes4(hex"c4d66de8"), a0, a1, attacker, M_SEEDED);
     }
 
     // MUST_PASS SafeInit
     function _code_1() internal pure returns (bytes memory) { return hex"608060405234801561000f575f80fd5b5060043610610034575f3560e01c80638da5cb5b14610038578063c4d66de814610056575b5f80fd5b610040610072565b60405161004d9190610187565b60405180910390f35b610070600480360381019061006b91906101ce565b610095565b005b5f8054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b620a11ce73ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610106576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016100fd90610253565b60405180910390fd5b805f806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050565b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f61017182610148565b9050919050565b61018181610167565b82525050565b5f60208201905061019a5f830184610178565b92915050565b5f80fd5b6101ad81610167565b81146101b7575f80fd5b50565b5f813590506101c8816101a4565b92915050565b5f602082840312156101e3576101e26101a0565b5b5f6101f0848285016101ba565b91505092915050565b5f82825260208201905092915050565b7f61757468000000000000000000000000000000000000000000000000000000005f82015250565b5f61023d6004836101f9565b915061024882610209565b602082019050919050565b5f6020820190508181035f83015261026a81610231565b905091905056fea26469706673582212200af5dc570f981a38197b346bac65ef4f5b3a7e287683038ae79da9d4318c01d364736f6c63430008180033"; }
 
-    function test_a1_c0_1_z(
-        bytes4 selector, uint256 a0, uint256 a1, address attacker
+    function test_a1_c0_1_c4d66de8_z(
+        uint256 a0, uint256 a1, address attacker
     ) public {
-        _probeSingle(_code_1(), 1, selector, a0, a1, attacker, true);
+        _probeSingle(_code_1(), 1, bytes4(hex"c4d66de8"), a0, a1, attacker, M_ZEROED);
+    }
+
+    function test_a1_c0_1_c4d66de8_e(
+        uint256 a0, uint256 a1, address attacker
+    ) public {
+        _probeSingle(_code_1(), 1, bytes4(hex"c4d66de8"), a0, a1, attacker, M_SEEDED);
     }
 
 }
