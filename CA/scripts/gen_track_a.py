@@ -1,29 +1,26 @@
 #!/usr/bin/env python3
-"""Track A generator (v2) — ProbeBaseA probes for the sweepable classes.
+"""Track A generator (v3) — ProbeBaseA probes with selector hints + model choice.
 
 Emits, per class, the CI matrix layout:
 
-    harness/stages/tracka_<class>/Stage<stage>Chunk_<n>.sol
-    harness/stages/tracka_<class>/chunk_<n>.tests
-    harness/stages/tracka_<class>/manifest.json
+    harness/stages/stage<stage>/Stage<stage>Chunk_<n>.sol
+    harness/stages/stage<stage>/chunk_<n>.tests
+    harness/stages/stage<stage>/manifest.json
 
-Chunk 0 is ALWAYS the class's two v2 controls (MUST_FAIL / MUST_PASS) and needs
-no bytecode DB — this is the `mode: sanity` gate. Target chunks embed the real
-runtime bytecode fetched from the CI-built DuckDB (`bytecodes` table) or a
-`bytecodes_sel.parquet`; therefore target generation runs in CI, never locally.
+Chunk 0 is ALWAYS the class's two controls (MUST_FAIL / MUST_PASS) and needs no
+bytecode DB. Target chunks embed runtime bytecode from the CI/HF-built DuckDB
+(`bytecodes`) or a compact `tracka_bytecodes.parquet`.
 
-Classes (Track A sweepable set; A3/A4/A8 are Track B):
-  a1  a1_init        SINGLE  (zeroed + symbolic models)
-  a2  a2_upgrade     SINGLE  (zeroed + symbolic models)
-  a6  a6_fee         SINGLE  (zeroed + symbolic models)
-  a7  a7_unchecked   SINGLE  (zeroed + symbolic models)
-  a9  a9_unauth_pull PULL    (ConsentToken victim + fixed-slot observation)
-  a5  a5_multicall   VALUE   (msg.value conservation)
+Two levers over v2:
+  * `--selector-hint` (default on): constrain the symbolic `bytes4 selector` to
+    the target's real dispatcher entries (`disp_sel` from the scanner). This
+    removes the 2^32 selector branching that made every safe proof cost ~1 h.
+  * `--models zeroed|symbolic|both` (default `zeroed`): the symbolic-storage
+    model OOMs on 16 GB runners, so mass sweeps use `zeroed`; use `both` on a
+    big-memory HF job when you want the extra soundness.
 
-Design invariants (no FP / no FN) live in `src/ProbeBaseA.sol` and `CA/kontrol`:
-  * attacker assumptions centralised (`vm.assume`, never `bound`);
-  * `P_AUTH_WRITE` only under the zeroed model; `P_STORAGE_CHANGED` in both;
-  * keccak-free token observation via ConsentToken fixed slots.
+Classes (sweepable set; A3/A4/A8 are Track B): a1 a2 a6 a7 (SINGLE),
+a9 (PULL), a5 (VALUE).
 """
 import argparse
 import json
@@ -36,7 +33,6 @@ ROOT = os.path.dirname(HERE)
 CTRL = os.path.join(ROOT, "harness", "controls")
 OUTROOT = os.path.join(ROOT, "harness", "stages")
 
-# class -> scanner id, template, (MUST_FAIL control, MUST_PASS control)
 CLASSES = {
     "a1": ("a1_init", "SINGLE", ("VulnerableInit", "SafeInit")),
     "a2": ("a2_upgrade", "SINGLE", ("VulnerableUpgrade", "SafeUpgrade")),
@@ -46,6 +42,9 @@ CLASSES = {
     "a5": ("a5_multicall", "VALUE", ("VulnerableValue", "SafeValue")),
 }
 ORDER = ["a1", "a2", "a5", "a6", "a7", "a9"]
+BASE = {"a1": 0x1000000, "a2": 0x1100000, "a6": 0x1600000, "a7": 0x1700000,
+        "a9": 0x1900000, "a5": 0x1500000}
+SEL_CAP = 128
 
 T = string.Template
 
@@ -79,23 +78,6 @@ SINGLE_BODY = T("""
 $probes}
 """)
 
-SINGLE_PROBE = T("""
-    function _code_$i() internal pure returns (bytes memory) { return hex"$code"; }
-
-    // $label
-    function test_${cls}_c${chunk}_${i}_z(
-        bytes4 selector, uint256 a0, uint256 a1, address attacker
-    ) public {
-        _probeSingle(_code_$i(), $i, selector, a0, a1, attacker, true);
-    }
-
-    function test_${cls}_c${chunk}_${i}_s(
-        bytes4 selector, uint256 a0, uint256 a1, address attacker
-    ) public {
-        _probeSingle(_code_$i(), $i, selector, a0, a1, attacker, false);
-    }
-""")
-
 PULL_BODY = T("""
     address internal constant VICTIM = 0x0000000000000000000000000000000000002222;
 
@@ -114,17 +96,6 @@ PULL_BODY = T("""
         _checkVictim(VICTIM);
     }
 $probes}
-""")
-
-PULL_PROBE = T("""
-    function _code_$i() internal pure returns (bytes memory) { return hex"$code"; }
-
-    // $label
-    function test_${cls}_c${chunk}_${i}(
-        bytes4 selector, uint256 amt, address attacker
-    ) public {
-        _probePull(_code_$i(), $i, selector, amt, attacker);
-    }
 """)
 
 VALUE_BODY = T("""
@@ -148,24 +119,31 @@ VALUE_BODY = T("""
 $probes}
 """)
 
-VALUE_PROBE = T("""
-    function _code_$i() internal pure returns (bytes memory) { return hex"$code"; }
+CODE = T("""    function _code_$i() internal pure returns (bytes memory) { return hex"$code"; }""")
 
-    // $label
-    function test_${cls}_c${chunk}_${i}(
+SEL = T("""    function _sels_${chunk}_${i}(bytes4 selector) internal pure returns (bool) {
+        return $conds;
+    }""")
+
+SINGLE_TEST = T("""    function test_${cls}_c${chunk}_${i}$suffix(
         bytes4 selector, uint256 a0, uint256 a1, address attacker
     ) public {
-        _probeValue(_code_$i(), $i, selector, a0, a1, attacker);
-    }
-""")
+$guard        _probeSingle(_code_$i(), $i, selector, a0, a1, attacker, $zeroed);
+    }""")
 
-TEMPLATES = {
-    "SINGLE": (SINGLE_BODY, SINGLE_PROBE),
-    "PULL": (PULL_BODY, PULL_PROBE),
-    "VALUE": (VALUE_BODY, VALUE_PROBE),
-}
-BASE = {"a1": 0x1000000, "a2": 0x1100000, "a6": 0x1600000, "a7": 0x1700000,
-        "a9": 0x1900000, "a5": 0x1500000}
+PULL_TEST = T("""    function test_${cls}_c${chunk}_${i}(
+        bytes4 selector, uint256 amt, address attacker
+    ) public {
+$guard        _probePull(_code_$i(), $i, selector, amt, attacker);
+    }""")
+
+VALUE_TEST = T("""    function test_${cls}_c${chunk}_${i}(
+        bytes4 selector, uint256 a0, uint256 a1, address attacker
+    ) public {
+$guard        _probeValue(_code_$i(), $i, selector, a0, a1, attacker);
+    }""")
+
+BODIES = {"SINGLE": SINGLE_BODY, "PULL": PULL_BODY, "VALUE": VALUE_BODY}
 
 
 def control_code(name):
@@ -174,27 +152,55 @@ def control_code(name):
     return c[2:] if c.startswith("0x") else c
 
 
-def _tests_for(cls, chunk, idx, template):
-    stem = f"test_{cls}_c{chunk}_{idx}"
-    return [stem + "_z", stem + "_s"] if template == "SINGLE" else [stem]
+def parse_sels(disp):
+    """`disp_sel` is a space-separated list of 8-hex selectors from the scanner."""
+    if not disp:
+        return []
+    toks = str(disp).replace(",", " ").split()
+    out = [t for t in toks if len(t) == 8]
+    return out[:SEL_CAP]
 
 
-def emit_probes(cls, chunk, items, base):
-    """items: list of (i, code_hex, label). Returns (body, tests)."""
-    _, template = CLASSES[cls][1], CLASSES[cls][1]
-    body_t, probe_t = TEMPLATES[template]
+def sel_helpers(chunk, i, sels, enabled):
+    """(helper_src, guard_src) for the per-target selector constraint."""
+    if not (enabled and sels):
+        return "", ""
+    conds = " || ".join(f'selector == hex"{s}"' for s in sels)
+    return SEL.substitute(chunk=chunk, i=i, conds=conds) + "\n", \
+        f"        vm.assume(_sels_{chunk}_{i}(selector));\n"
+
+
+def emit_probes(cls, chunk, items, base, models, selector_hint):
+    """items: list of dicts {i, code, label, sels}. Returns (body, tests)."""
+    template = CLASSES[cls][1]
     probes, tests = [], []
-    for i, code, label in items:
-        probes.append(probe_t.substitute(cls=cls, chunk=chunk, i=i, code=code, label=label))
-        tests.extend(_tests_for(cls, chunk, i, template))
-    body = body_t.substitute(base=f"{base:x}", probes="".join(probes))
+    for it in items:
+        i = it["i"]
+        block = "    // " + it["label"] + "\n"
+        helper, guard = sel_helpers(chunk, i, it.get("sels", []), selector_hint) \
+            if template == "SINGLE" else ("", "")
+        block += CODE.substitute(i=i, code=it["code"]) + "\n\n"
+        if helper:
+            block += helper + "\n"
+        if template == "SINGLE":
+            for m in models:
+                zeroed = "true" if m == "zeroed" else "false"
+                suffix = "_z" if m == "zeroed" else "_s"
+                block += SINGLE_TEST.substitute(cls=cls, chunk=chunk, i=i, suffix=suffix,
+                                                guard=guard, zeroed=zeroed) + "\n\n"
+                tests.append(f"test_{cls}_c{chunk}_{i}{suffix}")
+        elif template == "PULL":
+            block += PULL_TEST.substitute(cls=cls, chunk=chunk, i=i, guard=guard) + "\n\n"
+            tests.append(f"test_{cls}_c{chunk}_{i}")
+        else:
+            block += VALUE_TEST.substitute(cls=cls, chunk=chunk, i=i, guard=guard) + "\n\n"
+            tests.append(f"test_{cls}_c{chunk}_{i}")
+        probes.append(block)
+    body = BODIES[template].substitute(base=f"{base:x}", probes="".join(probes))
     return body, tests
 
 
 def chunk_targets(items):
-    """Partition by opcode count so a chunk job stays within the CI budget.
-    Large bytecodes get their own chunk; small ones batch (a SINGLE item emits
-    2 tests, so a small batch of 2 => 4 proofs)."""
     out, small, mid = [], [], []
     for it in items:
         ops = it["n_ops"]
@@ -220,36 +226,33 @@ def chunk_targets(items):
 
 
 def load_targets(args, scanner):
-    """Return list of {hash, n_ops, code_size_eff, deploys}. Preferred source is
-    the full-match parquet the scanner writes (`data/stages/<scanner>.parquet`);
-    the JSON is the top-40 sample (useful for a quick local check)."""
+    """Preferred source is the full-match parquet (`<scanner>.parquet`); the JSON
+    is the deployment-ranked sample."""
     if args.targets_parquet:
         import duckdb
         con = duckdb.connect(":memory:")
         rows = con.execute(
-            "SELECT bytecode_hash, n_ops, code_size_eff, deploys "
+            "SELECT bytecode_hash, n_ops, code_size_eff, deploys, disp_sel "
             "FROM read_parquet(?) ORDER BY deploys DESC", [args.targets_parquet]
         ).fetchall()
         con.close()
-        items = [{"hash": h, "n_ops": int(o), "code_size_eff": int(s), "deploys": int(d)}
-                 for h, o, s, d in rows]
+        items = [{"hash": h, "n_ops": int(o), "code_size_eff": int(s),
+                  "deploys": int(d), "disp_sel": ds} for h, o, s, d, ds in rows]
     else:
         path = args.targets or os.path.join(ROOT, "data", "stages", scanner + "_targets.json")
         man = json.load(open(path))
         items = [{"hash": t["hash"], "n_ops": t.get("n_ops", 0),
-                  "code_size_eff": t.get("code_size_eff", 0), "deploys": t.get("deploys", 0)}
-                 for t in man.get("targets", [])]
+                  "code_size_eff": t.get("code_size_eff", 0),
+                  "deploys": t.get("deploys", 0),
+                  "disp_sel": t.get("disp_sel", "")} for t in man.get("targets", [])]
     if args.limit and args.limit > 0:
         items = items[: args.limit]
     return items
 
 
 def bytecode_source(args):
-    """Return a callable hash -> hex string. Uses the DuckDB `bytecodes` table if
-    --db is given, else a bytecodes parquet/csv. Raises if neither is available."""
     if not args.controls_only and not (args.db or args.bytecodes_parquet):
-        raise SystemExit("target generation needs --db or --bytecodes-parquet "
-                         "(run in CI where the DuckDB is built)")
+        raise SystemExit("target generation needs --db or --bytecodes-parquet")
     import duckdb
     con = duckdb.connect(":memory:")
     con.execute("SET threads=4")
@@ -279,13 +282,6 @@ def bytecode_source(args):
 
 
 def write_stage(stage, chunks, outroot=None):
-    """chunks: list of (chunk_index, body, tests, class_label, targets).
-
-    Output dir follows the CI convention: `<outroot>/stage<stage>/` with files
-    `Stage<stage>Chunk_<n>.sol` (so `stage: tracka_a1` -> `stagetracka_a1/`).
-    `outroot` defaults to harness/stages but is redirected (e.g. to /tmp) for the
-    one-off full-universe build so the workspace does not fill.
-    """
     outdir = os.path.join(outroot or OUTROOT, "stage" + stage)
     os.makedirs(outdir, exist_ok=True)
     for f in os.listdir(outdir):
@@ -308,31 +304,34 @@ def write_stage(stage, chunks, outroot=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--class", dest="cls", required=True, choices=ORDER,
-                    help="Track A class slug (a1,a2,a5,a6,a7,a9)")
-    ap.add_argument("--controls-only", action="store_true",
-                    help="emit chunk 0 (controls) only; no bytecode DB needed")
-    ap.add_argument("--targets", default=None, help="targets JSON (top-N sample)")
-    ap.add_argument("--targets-parquet", default=None, help="full-match parquet from the scanner")
-    ap.add_argument("--db", default=None, help="DuckDB with a `bytecodes` table (CI)")
+    ap.add_argument("--class", dest="cls", required=True, choices=ORDER)
+    ap.add_argument("--controls-only", action="store_true")
+    ap.add_argument("--targets", default=None)
+    ap.add_argument("--targets-parquet", default=None)
+    ap.add_argument("--db", default=None)
     ap.add_argument("--bytecodes-parquet", default=None)
-    ap.add_argument("--limit", type=int, default=0, help="cap targets (0 = all)")
-    ap.add_argument("--stage", default=None, help="override stage id (default tracka_<cls>)")
-    ap.add_argument("--out", default=None, help="output root (default CA/harness/stages)")
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--stage", default=None)
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--models", default="zeroed",
+                    help="zeroed | symbolic | both (SINGLE classes)")
+    ap.add_argument("--no-selector-hint", dest="selector_hint",
+                    action="store_false", help="leave bytes4 selector fully symbolic")
     args = ap.parse_args()
 
+    models = {"zeroed": ["zeroed"], "symbolic": ["symbolic"],
+              "both": ["zeroed", "symbolic"]}[args.models]
     cls = args.cls
     scanner, template, (vuln, safe) = CLASSES[cls]
     stage = args.stage or f"tracka_{cls}"
     base = BASE[cls]
 
     chunks = []
-
-    # ---- chunk 0: controls (always) ----
     items = []
     for i, (kind, cname) in enumerate((("MUST_FAIL", vuln), ("MUST_PASS", safe))):
-        items.append((i, control_code(cname), f"{kind} {cname}"))
-    body, tests = emit_probes(cls, 0, items, base)
+        items.append({"i": i, "code": control_code(cname),
+                      "label": f"{kind} {cname}", "sels": []})
+    body, tests = emit_probes(cls, 0, items, base, models, False)
     chunks.append((0, body, tests, "CONTROLS", []))
 
     if not args.controls_only:
@@ -340,25 +339,24 @@ def main():
         if not targets:
             raise SystemExit(f"no targets for {scanner}")
         fetch = bytecode_source(args)
-        groups = chunk_targets(targets)
         missing = 0
-        for gi, group in enumerate(groups, start=1):
+        for gi, group in enumerate(chunk_targets(targets), start=1):
             probe_items, meta = [], []
             for i, t in enumerate(group):
                 code = fetch(t["hash"])
                 if not code:
                     missing += 1
                     continue
-                label = (f"{scanner} [{t['n_ops']} ops, {t['deploys']:,} deploys] {t['hash']}")
-                probe_items.append((i, code, label))
+                probe_items.append({"i": i, "code": code, "sels": parse_sels(t.get("disp_sel")),
+                                    "label": f"{scanner} [{t['n_ops']} ops, {t['deploys']:,} deploys] {t['hash']}"})
                 meta.append({"hash": t["hash"], "n_ops": t["n_ops"],
                              "deploys": t["deploys"], "idx": i})
             if not probe_items:
                 continue
-            body, tests = emit_probes(cls, gi, probe_items, base)
+            body, tests = emit_probes(cls, gi, probe_items, base, models, args.selector_hint)
             chunks.append((gi, body, tests, scanner, meta))
-        print(f"[{stage}] targets={len(targets)} chunks={len(chunks)-1} missing_bytecode={missing}",
-              flush=True)
+        print(f"[{stage}] targets={len(targets)} chunks={len(chunks)-1} "
+              f"missing={missing} models={args.models} sel_hint={args.selector_hint}", flush=True)
 
     write_stage(stage, chunks, args.out)
 

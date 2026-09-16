@@ -55,14 +55,17 @@ contract SafeUpgrade {
 }
 
 // ---- A6: accounting advanced from a manipulable reserve --------------------
-// `reserve` is a stand-in for a token balance a third party can change; the bug
-// is that permissionless `sync()` folds it into accounting.
+// `reserve` is a stand-in for a token balance a third party can change (seeded
+// with vm.store in the probe). The class bug is that permissionless `sync()`
+// folds it into accounting. The pair differs ONLY in the `sync` guard, so the
+// MUST_PASS control has no permissionless state write at all.
 contract VulnerableFee {
     uint256 public reserve; // slot 0 (manipulable)
     uint256 public accounted; // slot 1
 
     function donate(uint256 x) external {
-        reserve += x; // anyone can move the reserve
+        require(msg.sender == ADMIN, "auth");
+        reserve += x;
     }
 
     function sync() external {
@@ -75,6 +78,7 @@ contract SafeFee {
     uint256 public accounted; // slot 1
 
     function donate(uint256 x) external {
+        require(msg.sender == ADMIN, "auth");
         reserve += x;
     }
 
