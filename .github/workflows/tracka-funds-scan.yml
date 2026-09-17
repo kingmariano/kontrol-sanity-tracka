@@ -13,7 +13,7 @@ on:
       shards:
         description: 'number of parallel scan shards'
         required: false
-        default: '12'
+        default: '6'
         type: string
       cap:
         description: 'max deployment addresses sampled per bytecode'
@@ -105,7 +105,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install --quiet duckdb websockets
+      - run: pip install --quiet duckdb aiohttp
       - uses: actions/download-artifact@v4
         with:
           name: tracka-addresses
@@ -113,6 +113,8 @@ jobs:
       - name: Scan shard
         env:
           QUICKNODE_API_KEY_WSS: ${{ secrets.QUICKNODE_API_KEY_WSS }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          SCAN_CONC: '30'
         run: |
           python3 CA/scripts/funds_scan_shard.py \
             --addresses /tmp/tracka_addresses.parquet \
