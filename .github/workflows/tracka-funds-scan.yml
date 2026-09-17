@@ -42,12 +42,26 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install --quiet duckdb pandas pyarrow huggingface_hub
+      - name: Reuse cached address list from the bucket
+        id: reuse
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -uo pipefail
+          if hf cp "hf://buckets/Mariano234/kontrol-campaign/tracka_addresses.parquet" /tmp/tracka_addresses.parquet 2>/dev/null; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "reused cached tracka_addresses.parquet"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Cache Zellic dataset zips
+        if: steps.reuse.outputs.ok != 'true'
         uses: actions/cache@v4
         with:
           path: /tmp/eth-contracts/*.zip
           key: zellic-zips-v1
       - name: Fetch dataset zips
+        if: steps.reuse.outputs.ok != 'true'
         run: |
           set -euo pipefail
           mkdir -p /tmp/eth-contracts
@@ -57,6 +71,7 @@ jobs:
           test "$(stat -c%s /tmp/eth-contracts/contracts.zip)" = "2251610719"
           test "$(stat -c%s /tmp/eth-contracts/bytecodes.zip)" = "4139739279"
       - name: Build DuckDB
+        if: steps.reuse.outputs.ok != 'true'
         run: |
           set -euo pipefail
           cp CA/scripts/ingest.py CA/scripts/finalize.py /tmp/eth-contracts/
@@ -65,21 +80,27 @@ jobs:
           python3 -u finalize.py
           rm -f /tmp/eth-contracts/*.csv
       - name: Fetch Track A target parquets from the bucket
+        if: steps.reuse.outputs.ok != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
-          pip install --quiet huggingface_hub
           mkdir -p /tmp/eth-contracts/stages
           for s in a1_init a2_upgrade a5_multicall a6_fee a7_unchecked a9_unauth_pull; do
             hf cp "hf://buckets/Mariano234/kontrol-campaign/${s}.parquet" "/tmp/eth-contracts/stages/${s}.parquet"
           done
       - name: Export deployment addresses
+        if: steps.reuse.outputs.ok != 'true'
         env:
           ADDR_CAP: ${{ inputs.cap }}
           STAGES: /tmp/eth-contracts/stages
           OUT: /tmp/tracka_addresses.parquet
         run: python3 CA/scripts/funds_export_addresses.py
+      - name: Publish address list to the bucket
+        if: steps.reuse.outputs.ok != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: hf cp /tmp/tracka_addresses.parquet hf://buckets/Mariano234/kontrol-campaign/tracka_addresses.parquet || true
       - name: Upload addresses
         uses: actions/upload-artifact@v4
         with:

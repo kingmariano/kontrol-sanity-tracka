@@ -21,16 +21,26 @@ from decimal import Decimal
 import aiohttp
 import duckdb
 
+try:
+    sys.set_int_max_str_digits(200000)
+except Exception:
+    pass
+
 CONC = int(os.environ.get("SCAN_CONC", "30"))
 RETRIES = 4
+MAX_DEC = 77
 
 
 def _raw(s, decimals):
     try:
+        if decimals > MAX_DEC or decimals < 0:
+            return 0
         d = Decimal(str(s))
+        if d != d or abs(d) > Decimal(10) ** 90:
+            return 0
+        return int(d * (10 ** decimals)) if "." in str(s) else int(d)
     except Exception:
         return 0
-    return int(d * (10 ** decimals)) if "." in str(s) else int(d)
 
 
 def _pack(res):
@@ -40,6 +50,8 @@ def _pack(res):
     for t in (res.get("result") or []):
         try:
             dec = int(t.get("decimals") or 0)
+            if dec > MAX_DEC or dec < 0:
+                continue
             toks.append([t.get("address"), t.get("symbol") or "?", dec,
                          str(_raw(t.get("totalBalance") or "0", dec))])
         except Exception:
@@ -71,35 +83,41 @@ async def rpc(session, url, method, params, tries=RETRIES):
 
 async def one(session, qn, alchemy, sem, addr, out_fh, h, stats):
     async with sem:
-        res, err = await rpc(session, qn, "qn_getWalletTokenBalance",
-                             [{"wallet": addr, "pageSize": 100}])
-        native, toks = None, []
-        if res is not None:
-            native, toks = _pack(res)
-        elif alchemy:
-            stats["qn_fail"] += 1
-            nat, _e = await rpc(session, alchemy, "eth_getBalance", [addr, "latest"])
-            if nat is not None:
-                native = int(nat, 16) if isinstance(nat, str) else 0
-            tb, _e2 = await rpc(session, alchemy, "alchemy_getTokenBalances", [addr, "erc20"])
-            if isinstance(tb, dict):
-                for t in (tb.get("tokenBalances") or []):
-                    try:
-                        dec = int(t.get("decimals") or 0) if t.get("decimals") is not None else 0
-                        raw = int(t.get("tokenBalance") or "0x0", 16)
-                        if raw and dec == 0:
-                            md, _ = await rpc(session, alchemy, "eth_call",
-                                              [{"to": t["contractAddress"],
-                                                "data": "0x313ce567"}, "latest"])
-                            if isinstance(md, str):
-                                dec = int(md, 16)
-                        toks.append([t["contractAddress"], "?", dec, str(raw)])
-                    except Exception:
-                        continue
-        else:
+        try:
+            res, err = await rpc(session, qn, "qn_getWalletTokenBalance",
+                                 [{"wallet": addr, "pageSize": 100}])
+            native, toks = None, []
+            if res is not None:
+                native, toks = _pack(res)
+            elif alchemy:
+                stats["qn_fail"] += 1
+                nat, _e = await rpc(session, alchemy, "eth_getBalance", [addr, "latest"])
+                if nat is not None:
+                    native = int(nat, 16) if isinstance(nat, str) else 0
+                tb, _e2 = await rpc(session, alchemy, "alchemy_getTokenBalances",
+                                    [addr, "erc20"])
+                if isinstance(tb, dict):
+                    for t in (tb.get("tokenBalances") or []):
+                        try:
+                            dec = int(t.get("decimals") or 0) if t.get("decimals") is not None else 0
+                            raw = int(t.get("tokenBalance") or "0x0", 16)
+                            if raw and dec == 0:
+                                md, _ = await rpc(session, alchemy, "eth_call",
+                                                  [{"to": t["contractAddress"],
+                                                    "data": "0x313ce567"}, "latest"])
+                                if isinstance(md, str):
+                                    dec = int(md, 16)
+                            if dec > MAX_DEC or dec < 0:
+                                continue
+                            toks.append([t["contractAddress"], "?", dec, str(raw)])
+                        except Exception:
+                            continue
+            else:
+                stats["unscanned"] += 1
+                return
+            out_fh.write(json.dumps({"h": h, "a": addr, "n": native or 0, "t": toks}) + "\n")
+        except Exception:
             stats["unscanned"] += 1
-            return
-        out_fh.write(json.dumps({"h": h, "a": addr, "n": native or 0, "t": toks}) + "\n")
         stats["done"] += 1
         if stats["done"] % 10000 == 0:
             print(f"  scanned {stats['done']:,}  (qn_fail={stats['qn_fail']:,})", flush=True)
