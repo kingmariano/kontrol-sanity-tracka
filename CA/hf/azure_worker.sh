@@ -57,21 +57,25 @@ while read -r stage chunk; do
 
   cat > "$PROBE/run_chunk.sh" <<'INNER'
 set -u
-IMG=runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
 OPTS="${PROVE_OPTS:---use-booster --no-break-on-calls --no-stack-checks --no-log-rewrites --max-frontier-parallel 2 --max-depth 50000 --max-iterations 100000 --smt-timeout 30000 --smt-retry-limit 2 --workers 3 --step-timeout 600 --auto-abstract-gas}"
+echo "[inner] kontrol build"
+kontrol build 2>&1 | tail -2 || true
 V=/work/verdicts_chunk.txt; : > "$V"
 while IFS= read -r t; do
   [ -z "$t" ] && continue
+  SECONDS=0
   echo "=== $t ===" >> "$V"
   timeout -k 30s "${BUDGET_SECS:-600}s" kontrol prove --match-test "$t" $OPTS > /work/one.log 2>&1 || true
   if grep -qE 'PROOF (PASSED|FAILED)' /work/one.log; then
     verdict=$(grep -E 'PROOF (PASSED|FAILED)' /work/one.log | head -1)
     prop=$(grep -oE 'P_[A-Z_]+' /work/one.log | sort -u | head -3 | tr '\n' ',')
-    echo "=== $t $verdict (prop: $prop) ===" >> "$V"
+    echo "=== $t $verdict (prop: $prop) [${SECONDS}s] ===" >> "$V"
   elif grep -qE 'Test identifiers not found' /work/one.log; then
     echo "=== $t BROKEN (test name absent) ===" >> "$V"
+  elif grep -qE 'Traceback|FileNotFoundError|No such file' /work/one.log; then
+    echo "=== $t ERROR (harness/setup) [${SECONDS}s] ===" >> "$V"
   else
-    echo "=== $t INCOMPLETE ===" >> "$V"
+    echo "=== $t INCOMPLETE [${SECONDS}s] ===" >> "$V"
   fi
 done < /work/tests.txt
 INNER
