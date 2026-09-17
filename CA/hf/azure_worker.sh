@@ -41,11 +41,18 @@ rm -rf repo && git clone --depth 1 "$REPO" repo
 
 OUT="$WORK/out"; mkdir -p "$OUT"
 : > "$OUT/verdicts.txt"
+# resume: skip chunks this VM already uploaded (per-chunk markers in the bucket)
+DONE_LIST="$WORK/done_chunks.txt"; : > "$DONE_LIST"
+hf buckets list Mariano234/kontrol-campaign -R 2>/dev/null \
+  | grep -oE "verdicts_vm${VM_INDEX}_[a-z0-9_]+\.txt" | sort -u > "$DONE_LIST" || true
+echo "[vm$VM_INDEX] resume markers: $(wc -l < "$DONE_LIST")"
 i=0
 while read -r stage chunk; do
   [ -z "${stage:-}" ] && continue
   if [ $((i % VM_COUNT)) -ne "$VM_INDEX" ]; then i=$((i+1)); continue; fi
   i=$((i+1))
+  MARK="verdicts_vm${VM_INDEX}_${stage}_${chunk}.txt"
+  if grep -qx "$MARK" "$DONE_LIST"; then echo "[vm$VM_INDEX] skip $stage c$chunk (already done)"; continue; fi
   echo "[vm$VM_INDEX] assigned $stage c$chunk"
   echo "$stage $chunk" >> "$OUT/assigned.txt"
 
@@ -89,6 +96,13 @@ INNER
     "$IMG" bash /work/run_chunk.sh
   echo "----- $stage c$chunk -----" >> "$OUT/verdicts.txt"
   cat "$PROBE/verdicts_chunk.txt" >> "$OUT/verdicts.txt" 2>/dev/null || true
+  # per-chunk upload so a deallocation never loses finished work
+  cp "$PROBE/verdicts_chunk.txt" "$OUT/v_${stage}_${chunk}.txt" 2>/dev/null || true
+  hf cp "$OUT/v_${stage}_${chunk}.txt" "$BUCKET/${MARK}" >/dev/null 2>&1 || true
+  echo "$MARK" >> "$DONE_LIST"
+  # rolling full-verdict snapshot
+  tar -czf "$WORK/verdicts_vm${VM_INDEX}.tgz" -C "$OUT" verdicts.txt assigned.txt 2>/dev/null || true
+  hf cp "$WORK/verdicts_vm${VM_INDEX}.tgz" "$BUCKET/verdicts_vm${VM_INDEX}.tgz" >/dev/null 2>&1 || true
 done < "$WORK/wave/assignments.txt"
 
 BASE="verdicts_vm${VM_INDEX}"
