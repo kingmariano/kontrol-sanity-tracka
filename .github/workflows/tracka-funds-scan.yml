@@ -1,0 +1,164 @@
+# tracka-funds-scan — filter the FULL Track A universe down to funded targets.
+#
+# No Kontrol here: it builds the Zellic DuckDB once (cached zips), exports every
+# deployment address for every matched bytecode, scans each address for native +
+# ERC-20 holdings over QuickNode WSS (1 call/address), prices the tokens with
+# Alchemy, and keeps only targets holding >= MIN_USD. The result is the reduced
+# dataset the proving waves should use.
+name: tracka-funds-scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: 'number of parallel scan shards'
+        required: false
+        default: '12'
+        type: string
+      cap:
+        description: 'max deployment addresses sampled per bytecode'
+        required: false
+        default: '50'
+        type: string
+      min_usd:
+        description: 'minimum USD (ETH + priced ERC-20) to keep a target'
+        required: false
+        default: '10'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    outputs:
+      shard_list: ${{ steps.mk.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet duckdb pandas pyarrow huggingface_hub
+      - name: Cache Zellic dataset zips
+        uses: actions/cache@v4
+        with:
+          path: /tmp/eth-contracts/*.zip
+          key: zellic-zips-v1
+      - name: Fetch dataset zips
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/eth-contracts
+          base=https://huggingface.co/datasets/Zellic/all-ethereum-contracts/resolve/main
+          [ -s /tmp/eth-contracts/contracts.zip ] || curl -fsSL -o /tmp/eth-contracts/contracts.zip "$base/contracts.zip"
+          [ -s /tmp/eth-contracts/bytecodes.zip ] || curl -fsSL -o /tmp/eth-contracts/bytecodes.zip "$base/bytecodes.zip"
+          test "$(stat -c%s /tmp/eth-contracts/contracts.zip)" = "2251610719"
+          test "$(stat -c%s /tmp/eth-contracts/bytecodes.zip)" = "4139739279"
+      - name: Build DuckDB
+        run: |
+          set -euo pipefail
+          cp CA/scripts/ingest.py CA/scripts/finalize.py /tmp/eth-contracts/
+          cd /tmp/eth-contracts
+          python3 -u ingest.py || echo "known hash assert"
+          python3 -u finalize.py
+          rm -f /tmp/eth-contracts/*.csv
+      - name: Fetch Track A target parquets from the bucket
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          pip install --quiet huggingface_hub
+          mkdir -p /tmp/eth-contracts/stages
+          for s in a1_init a2_upgrade a5_multicall a6_fee a7_unchecked a9_unauth_pull; do
+            hf cp "hf://buckets/Mariano234/kontrol-campaign/${s}.parquet" "/tmp/eth-contracts/stages/${s}.parquet"
+          done
+      - name: Export deployment addresses
+        env:
+          ADDR_CAP: ${{ inputs.cap }}
+          STAGES: /tmp/eth-contracts/stages
+          OUT: /tmp/tracka_addresses.parquet
+        run: python3 CA/scripts/funds_export_addresses.py
+      - name: Upload addresses
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracka-addresses
+          path: /tmp/tracka_addresses.parquet
+          retention-days: 7
+      - id: mk
+        env:
+          N: ${{ inputs.shards }}
+        run: echo "list=$(python3 -c "import json,os;print(json.dumps(list(range(int(os.environ['N'])))))")" >> "$GITHUB_OUTPUT"
+
+  scan:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJSON(needs.prepare.outputs.shard_list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet duckdb websockets
+      - uses: actions/download-artifact@v4
+        with:
+          name: tracka-addresses
+          path: /tmp
+      - name: Scan shard
+        env:
+          QUICKNODE_API_KEY_WSS: ${{ secrets.QUICKNODE_API_KEY_WSS }}
+        run: |
+          python3 CA/scripts/funds_scan_shard.py \
+            --addresses /tmp/tracka_addresses.parquet \
+            --shard ${{ matrix.shard }} --shards ${{ inputs.shards }} \
+            --out /tmp/scan_${{ matrix.shard }}.jsonl
+      - name: Upload shard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracka-scan-${{ matrix.shard }}
+          path: /tmp/scan_${{ matrix.shard }}.jsonl
+          if-no-files-found: warn
+          retention-days: 7
+
+  finalize:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet duckdb huggingface_hub
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tracka-scan-*
+          merge-multiple: true
+          path: /tmp/scans
+      - name: Merge + price + filter
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          SCAN_GLOB: /tmp/scans/*.jsonl
+          OUT: /tmp/funded_targets.parquet
+          MIN_USD: ${{ inputs.min_usd }}
+        run: |
+          ls -la /tmp/scans | head
+          python3 CA/scripts/funds_finalize.py
+      - name: Publish to the bucket
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          hf cp /tmp/funded_targets.parquet hf://buckets/Mariano234/kontrol-campaign/funded_targets.parquet || true
+      - name: Upload funded dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracka-funded
+          path: /tmp/funded_targets.parquet
+          retention-days: 30
