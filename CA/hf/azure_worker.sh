@@ -52,8 +52,8 @@ while read -r stage chunk; do
   PROBE="$WORK/repo/probe"
   rm -rf "$PROBE"; cp -r "$WORK/repo/CA/harness/skeleton" "$PROBE"
   mkdir -p "$PROBE/test"
-  cp "$WORK/wave/$stage/Stage${stage}Chunk_${chunk}.sol" "$PROBE/test/"
-  TESTS="$WORK/wave/$stage/chunk_${chunk}.tests"
+  cp "$WORK/wave/stage${stage}/Stage${stage}Chunk_${chunk}.sol" "$PROBE/test/"
+  TESTS="$WORK/wave/stage${stage}/chunk_${chunk}.tests"
 
   cat > "$PROBE/run_chunk.sh" <<'INNER'
 set -u
