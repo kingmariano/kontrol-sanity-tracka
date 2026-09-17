@@ -15,7 +15,7 @@ set -euo pipefail
 : "${VM_INDEX:?set VM_INDEX}"
 : "${VM_COUNT:?set VM_COUNT}"
 WAVE="${WAVE:-wave1}"
-BUDGET_SECS="${BUDGET_SECS:-600}"
+BUDGET_SECS="${BUDGET_SECS:-1800}"
 IMG=runtimeverificationinc/kontrol:ubuntu-jammy-1.0.255
 BUCKET=hf://buckets/Mariano234/kontrol-campaign
 REPO=https://github.com/kingmariano/kontrol-sanity-tracka.git
@@ -96,10 +96,16 @@ INNER
     "$IMG" bash /work/run_chunk.sh
   echo "----- $stage c$chunk -----" >> "$OUT/verdicts.txt"
   cat "$PROBE/verdicts_chunk.txt" >> "$OUT/verdicts.txt" 2>/dev/null || true
-  # per-chunk upload so a deallocation never loses finished work
+  # Per-chunk upload. Only mark the chunk DONE when no test is INCOMPLETE, so
+  # unfinished chunks are retried with a larger budget instead of silently lost.
   cp "$PROBE/verdicts_chunk.txt" "$OUT/v_${stage}_${chunk}.txt" 2>/dev/null || true
-  hf cp "$OUT/v_${stage}_${chunk}.txt" "$BUCKET/${MARK}" >/dev/null 2>&1 || true
-  echo "$MARK" >> "$DONE_LIST"
+  if grep -q "INCOMPLETE" "$PROBE/verdicts_chunk.txt" 2>/dev/null; then
+    hf cp "$OUT/v_${stage}_${chunk}.txt" "$BUCKET/verdicts_vm${VM_INDEX}_${stage}_${chunk}.partial.txt" >/dev/null 2>&1 || true
+    echo "[vm$VM_INDEX] $stage c$chunk has INCOMPLETE tests -> will retry"
+  else
+    hf cp "$OUT/v_${stage}_${chunk}.txt" "$BUCKET/${MARK}" >/dev/null 2>&1 || true
+    echo "$MARK" >> "$DONE_LIST"
+  fi
   # rolling full-verdict snapshot
   tar -czf "$WORK/verdicts_vm${VM_INDEX}.tgz" -C "$OUT" verdicts.txt assigned.txt 2>/dev/null || true
   hf cp "$WORK/verdicts_vm${VM_INDEX}.tgz" "$BUCKET/verdicts_vm${VM_INDEX}.tgz" >/dev/null 2>&1 || true
