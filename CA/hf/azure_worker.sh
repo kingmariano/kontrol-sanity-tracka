@@ -24,8 +24,8 @@ WORK=/opt/kontrol
 export DEBIAN_FRONTEND=noninteractive
 mkdir -p "$WORK" && cd "$WORK"
 for pkg in docker.io git curl python3-pip; do command -v "${pkg%%-*}" >/dev/null 2>&1 || true; done
-apt-get update -qq >/dev/null
-apt-get install -y -qq docker.io git curl python3-pip >/dev/null
+apt-get -o DPkg::Lock::Timeout=600 update -qq >/dev/null 2>&1 || true
+apt-get -o DPkg::Lock::Timeout=600 install -y -qq docker.io git curl python3-pip >/dev/null 2>&1 || true
 systemctl start docker 2>/dev/null || service docker start 2>/dev/null || true
 pip3 install --quiet "huggingface_hub[cli]"
 
