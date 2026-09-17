@@ -35,7 +35,11 @@ contract ProbeBaseA is Test {
     address internal constant ADMIN = address(0xA11CE);
 
     // ---- watched slot space -------------------------------------------------
-    uint256 internal constant CONTIG = 64;
+    // Kept lean on purpose: every watched slot costs a `vm.store` seed, a
+    // `vm.load` snapshot and a compare+assert per test, and that overhead (not
+    // the target logic) dominated real-proof time at CONTIG=64. 16 contiguous
+    // slots + the 8 well-known proxy slots is the cost/coverage sweet spot.
+    uint256 internal constant CONTIG = 16;
     uint256 internal constant NAMED = 8;
     uint256 internal constant NWATCH = CONTIG + NAMED;
 
