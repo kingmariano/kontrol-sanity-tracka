@@ -14,6 +14,7 @@ contract Stagetracka_a1Chunk_0 is ProbeBaseA {
         _assumeAttacker(attacker, target);
         vm.etch(target, code);
         vm.deal(target, 1 ether);
+        vm.deal(attacker, 1 ether);
         _seed(target, model);
         _snapshotTarget(target);
         _snapshotTokens();
