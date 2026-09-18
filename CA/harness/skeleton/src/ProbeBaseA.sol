@@ -95,16 +95,16 @@ contract ProbeBaseA is Test {
     }
 
     // ---------------------------------------------------------------- attacker
+    /// @dev "Permissionless" means an ordinary fixed EOA. A free symbolic attacker
+    /// can be instantiated as the target's own admin/owner (hardcoded in bytecode
+    /// or read from zeroed/seeded storage), turning legitimate privileged writes
+    /// into bogus "permissionless" findings (observed on transparent-proxy
+    /// `upgradeTo` targets, 2026-09-18).
+    address internal constant ATTACKER = address(0x1337);
+
     function _assumeAttacker(address attacker, address target) internal view {
-        vm.assume(attacker != address(0));
-        vm.assume(uint256(uint160(attacker)) > 0xff);
-        vm.assume(attacker != KONTROL_HEVM);
-        vm.assume(attacker != KONTROL_CONSOLE);
-        vm.assume(attacker != address(this));
-        vm.assume(attacker != address(vm));
+        vm.assume(attacker == ATTACKER);
         vm.assume(attacker != target);
-        vm.assume(attacker != ADMIN);
-        for (uint256 i = 0; i < 5; ++i) vm.assume(attacker != TOKENS[i]);
     }
 
     function _assumeAttackerVictim(address attacker, address target, address victim)

@@ -116,6 +116,7 @@ SINGLE_BODY = T("""
         _assumeAttacker(attacker, target);
         vm.etch(target, code);
         vm.deal(target, 1 ether);
+        vm.deal(attacker, 1 ether);
         _seed(target, model);
         _snapshotTarget(target);
         _snapshotTokens();
@@ -138,6 +139,7 @@ PULL_BODY = T("""
         _assumeAttackerVictim(attacker, target, VICTIM);
         vm.etch(target, code);
         vm.deal(target, 1 ether);
+        vm.deal(attacker, 1 ether);
         _seed(target, model);
         _seedVictim(VICTIM, target, 1_000 ether, 1_000 ether);
         _snapshotTokens();
